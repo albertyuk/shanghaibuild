@@ -1,32 +1,36 @@
-# React + TypeScript + Vite
+# Albert Yuk — Portfolio
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Single-page portfolio organized around a 3D globe: six chapters of work, each
+pinned to the place it happened. As the page scrolls, the globe flies to the
+active chapter; a fixed chapter index doubles as navigation, so the animation
+is never the only way to get anywhere.
 
-Currently, two official plugins are available:
+Stack: Vite + React + TypeScript, `react-globe.gl` (Three.js). Static output,
+no backend, no router, no client storage.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Editing content
 
-## React Compiler
+All portfolio content — chapters, pins, coordinates, links, and every line of
+page copy — lives in **`src/data/chapters.ts`**. Lines marked `TODO(ALBERT)`
+are placeholders to fill in.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+All colors and type tokens live in **`src/styles/tokens.css`**. Nothing else
+in the codebase declares a color.
 
-## Expanding the Oxlint configuration
+## Develop
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Build & deploy
+
+```sh
+npm run build    # type-checks, then emits dist/
+npm run preview  # serve the production build locally
+```
+
+`dist/` is a plain static site; deploy it to Vercel or Cloudflare Pages as-is
+(framework preset: Vite, output directory: `dist`). Globe textures are served
+locally from `public/textures/`, so no runtime requests leave the origin.

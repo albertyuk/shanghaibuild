@@ -12,7 +12,6 @@ interface Props {
 interface PointDatum {
   lat: number;
   lng: number;
-  city: string;
   chapterId: string;
 }
 
@@ -88,12 +87,15 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props
         chapter.pins.map((pin) => ({
           lat: pin.lat,
           lng: pin.lng,
-          city: pin.city,
           chapterId: chapter.id,
         })),
       ),
     [],
   );
+
+  // globe.gl's intro tween (scale-in + full rotation) is an init-time
+  // option, so capture the reduced-motion preference at mount.
+  const animateIn = useRef(!reducedMotion);
 
   // Arcs exist only while their chapter is active.
   const arcs = useMemo<ArcDatum[]>(() => {
@@ -131,7 +133,15 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props
     return () => window.removeEventListener("scroll", stopIdleRotate);
   }, [applyAutoRotate]);
 
-  const handleGlobeReady = useCallback(() => {
+  // One-time setup, keyed on the <Globe> mount (it renders once the pane
+  // has been measured). Deliberately NOT the onGlobeReady callback: with
+  // waitForGlobeReady={false} three-globe fires ready synchronously inside
+  // its constructor, before react-kapsule has attached the callback — it
+  // would never be invoked. The ref is guaranteed set by the time this
+  // effect runs, and globe.gl builds its controls synchronously at mount.
+  const globeMounted = size.width > 0 && size.height > 0;
+  useEffect(() => {
+    if (!globeMounted || ready) return;
     const globe = globeRef.current;
     if (!globe) return;
     const controls = globe.controls() as unknown as GlobeControls;
@@ -139,7 +149,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props
     controls.enablePan = false;
     globe.pointOfView(HERO_POV, 0);
     setReady(true);
-  }, []);
+  }, [globeMounted, ready]);
 
   // Pixel ratio cap: 1.5 on mobile, 2 on desktop.
   useEffect(() => {
@@ -195,7 +205,13 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props
           arcDashAnimateTime={reducedMotion ? 0 : 1500}
           arcsTransitionDuration={0}
           rendererConfig={{ antialias: true, alpha: true }}
-          onGlobeReady={handleGlobeReady}
+          // Without this, three-globe keeps the whole scene hidden until
+          // the night texture loads — and its loader has no error
+          // callback, so a failed texture request would blank the pane
+          // forever. With it, the untextured sphere, pins, and arcs
+          // render immediately and the texture drapes in on arrival.
+          waitForGlobeReady={false}
+          animateIn={animateIn.current}
         />
       )}
     </div>

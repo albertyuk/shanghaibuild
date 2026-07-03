@@ -30,8 +30,9 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Paper, not amber: the accent is reserved for pins, arcs, active nav, links. */
 ::selection {
-  background: var(--amber);
+  background: var(--paper);
   color: var(--ink);
 }
 
@@ -47,7 +48,7 @@ a:hover {
 }
 
 :focus-visible {
-  outline: 2px solid var(--amber);
+  outline: 2px solid var(--paper);
   outline-offset: 3px;
 }
 
@@ -128,6 +129,22 @@ button {
   margin-left: auto;
   margin-right: auto;
   max-width: 46rem;
+}
+
+/* Without a globe, a cue that promises one would lie. */
+.no-globe .scroll-cue {
+  display: none;
+}
+
+/* In the no-globe fallback the rail is centered, so full nav titles would
+ * collide with the text column at narrow desktop widths — numbers only. */
+.no-globe .index-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 /* ---------- Hero ---------- */
@@ -317,8 +334,11 @@ button {
   padding: 2px 0;
 }
 
-.index-item:hover {
-  color: var(--paper);
+/* Hover-capable pointers only, so touch taps don't leave a stale highlight. */
+@media (hover: hover) {
+  .index-item:hover {
+    color: var(--paper);
+  }
 }
 
 .index-item.is-active {
@@ -358,6 +378,12 @@ button {
 /* ---------- Mobile (<900px): globe sticky on top, rail beneath ---------- */
 
 @media (max-width: 899px) {
+  /* Anchor jumps (skip link) and focus-driven scrolls must land content
+   * below the opaque sticky globe, not underneath it. */
+  html {
+    scroll-padding-top: calc(var(--globe-height-mobile) + 16px);
+  }
+
   .globe-pane {
     position: sticky;
     width: 100%;
