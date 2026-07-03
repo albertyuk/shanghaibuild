@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Globe, { type GlobeMethods } from "react-globe.gl";
-import { DoubleSide, MeshBasicMaterial } from "three";
+import { MeshBasicMaterial } from "three";
 import { chapters, type Chapter } from "../data/chapters";
 import { cssToken, withAlpha } from "../lib/cssTokens";
 
@@ -86,6 +86,39 @@ const PATH_POINTS = (ring: object) => ring as number[][];
 const PATH_POINT_LAT = (point: object) => (point as number[])[1];
 const PATH_POINT_LNG = (point: object) => (point as number[])[0];
 
+/** three-globe's internal globe radius. */
+const GLOBE_RADIUS = 100;
+
+/**
+ * Land and coastlines float slightly above the ocean sphere, so a band of
+ * the far side (~sqrt(2·altitude) radians wide) stays geometrically
+ * visible past the limb and would draw as a ring hugging the horizon —
+ * no winding or culling can prevent that. Discard fragments that lie
+ * beyond the globe's horizon from the camera instead; the small cosine
+ * slack keeps the clip from nibbling geometry right at the limb.
+ */
+function clipBehindHorizon<T extends { onBeforeCompile: unknown; customProgramCacheKey?: unknown }>(
+  material: T,
+): T {
+  (material as { onBeforeCompile: (shader: { vertexShader: string; fragmentShader: string }) => void }).onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vGlobePos;")
+      .replace(
+        "#include <begin_vertex>",
+        "#include <begin_vertex>\nvGlobePos = (modelMatrix * vec4(position, 1.0)).xyz;",
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vGlobePos;")
+      .replace(
+        "void main() {",
+        `void main() {\n\tif (dot(normalize(vGlobePos), normalize(cameraPosition)) < ${GLOBE_RADIUS.toFixed(1)} / length(cameraPosition) - 0.005) discard;`,
+      );
+  };
+  (material as { customProgramCacheKey: () => string }).customProgramCacheKey = () =>
+    "horizon-clip";
+  return material;
+}
+
 function chapterPointOfView(chapter: Chapter) {
   const lat = chapter.pins.reduce((sum, pin) => sum + pin.lat, 0) / chapter.pins.length;
   const lng = chapter.pins.reduce((sum, pin) => sum + pin.lng, 0) / chapter.pins.length;
@@ -122,11 +155,11 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props
     () => new MeshBasicMaterial({ color: palette.wash }),
     [palette],
   );
-  // DoubleSide matches the lib's own cap default: ring winding varies
-  // across clipped tiles, and a front-side-only material silently culls
-  // the reversed ones.
+  // Front-side only: the build-time tiler winds every ring to d3-geo's
+  // clockwise-exterior convention, so all caps face outward uniformly.
+  // The horizon clip removes the far-side band that floats past the limb.
   const landMaterial = useMemo(
-    () => new MeshBasicMaterial({ color: palette.ground, side: DoubleSide }),
+    () => clipBehindHorizon(new MeshBasicMaterial({ color: palette.ground })),
     [palette],
   );
 
@@ -170,6 +203,21 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props
             const upTo = i + 1;
             plan.push(() => setCoasts(rings.slice(0, upTo)));
             budget = 0;
+          }
+        });
+        // Final step, one frame after the last chunk has committed: give
+        // every coastline line the horizon clip. three-globe stamps each
+        // ring datum with its THREE object, and with stable accessors it
+        // never rebuilds these materials afterwards.
+        plan.push(() => {
+          for (const ring of rings) {
+            const line = (ring as { __threeObjPath?: { material?: { needsUpdate: boolean; userData: Record<string, boolean> } } }).__threeObjPath;
+            const material = line?.material;
+            if (material && !material.userData.horizonClip) {
+              clipBehindHorizon(material as unknown as Parameters<typeof clipBehindHorizon>[0]);
+              material.needsUpdate = true;
+              material.userData.horizonClip = true;
+            }
           }
         });
         if (!plan.length) return;
@@ -269,8 +317,21 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props
     controls.enableZoom = false; // the wheel keeps scrolling the page
     controls.enablePan = false;
     globe.pointOfView(HERO_POV, 0);
+    // Pins float above the land caps, so far-side pins would peek past
+    // the limb as stray specks — clip them like the land. Their objects
+    // exist by now (points data is set at construction and never changes)
+    // and the lib updates pin colors as uniforms, which survive this.
+    for (const point of points) {
+      const pin = (point as { __threeObjPoint?: { material?: { needsUpdate: boolean; userData: Record<string, boolean> } } }).__threeObjPoint;
+      const material = pin?.material;
+      if (material && !material.userData.horizonClip) {
+        clipBehindHorizon(material as unknown as Parameters<typeof clipBehindHorizon>[0]);
+        material.needsUpdate = true;
+        material.userData.horizonClip = true;
+      }
+    }
     setReady(true);
-  }, [globeMounted, ready]);
+  }, [globeMounted, ready, points]);
 
   // Pixel ratio cap: 1.5 on mobile, 2 on desktop.
   useEffect(() => {
