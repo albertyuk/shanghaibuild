@@ -1,0 +1,22 @@
+/*
+ * Design tokens — the single source of truth for color, type, and layout
+ * constants. No component and no other stylesheet may declare a raw color
+ * value; everything reads these variables (components read them at runtime
+ * via getComputedStyle where Three.js needs color strings).
+ */
+:root {
+  /* Palette — grounded in the night-earth satellite texture */
+  --ink: #0A0D13; /* page ground: near-black blue of the night-earth texture */
+  --paper: #EFEAE0; /* primary text: warm print-white */
+  --amber: #D99A3D; /* single accent, sampled from city lights — active pins, arcs, active nav item, links only */
+  --dim: rgba(239, 234, 224, 0.55); /* secondary text */
+  --hairline: rgba(239, 234, 224, 0.14); /* rules */
+
+  /* Type — two families, no more */
+  --font-serif: "EB Garamond", Georgia, "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Layout constants */
+  --globe-width-desktop: 60vw;
+  --globe-height-mobile: 45vh;
+}
