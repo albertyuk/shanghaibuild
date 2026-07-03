@@ -1,0 +1,421 @@
+/*
+ * Layout and typography. Every color in this file is a token from
+ * tokens.css — no raw color values outside that file.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--ink);
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-serif);
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--amber);
+  color: var(--ink);
+}
+
+a {
+  color: var(--amber);
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--hairline);
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  text-decoration-color: var(--amber);
+}
+
+:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 3px;
+}
+
+button {
+  font: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.skip-link {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 50;
+  padding: 8px 14px;
+  background: var(--ink);
+  color: var(--paper);
+  border: 1px solid var(--hairline);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  transform: translateY(-300%);
+}
+
+.skip-link:focus-visible {
+  transform: none;
+}
+
+/* ---------- Globe pane ---------- */
+
+.globe-pane {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--globe-width-desktop);
+  height: 100vh;
+  overflow: hidden;
+  background: var(--ink);
+  z-index: 2;
+}
+
+.globe-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.globe-placeholder {
+  position: absolute;
+  inset: 0;
+  background: var(--ink);
+  display: grid;
+  place-items: center;
+}
+
+.globe-placeholder-disc {
+  width: min(72%, 78vh);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1px solid var(--hairline);
+}
+
+/* ---------- Rail ---------- */
+
+.rail {
+  position: relative;
+  z-index: 1;
+  margin-left: var(--globe-width-desktop);
+  padding: 0 clamp(28px, 4.5vw, 72px);
+}
+
+.no-globe .globe-pane {
+  display: none;
+}
+
+.no-globe .rail {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 46rem;
+}
+
+/* ---------- Hero ---------- */
+
+.hero {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+  position: relative;
+  padding: 96px 0 64px;
+}
+
+.hero-kicker {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.hero h1 {
+  margin: 0;
+  font-weight: 500;
+  font-size: clamp(3rem, 6vw, 4.6rem);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+}
+
+.hero-identity {
+  margin: 0;
+  font-size: clamp(1.05rem, 1.5vw, 1.3rem);
+  line-height: 1.5;
+  color: var(--dim);
+  max-width: 30rem;
+}
+
+.scroll-cue {
+  position: absolute;
+  bottom: 44px;
+  left: 0;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+/* ---------- About ---------- */
+
+.about {
+  margin: 0;
+  padding: 40px 0 56px;
+  border-top: 1px solid var(--hairline);
+  color: var(--dim);
+  font-size: 1.02rem;
+  max-width: 34rem;
+}
+
+/* ---------- Chapters ---------- */
+
+.chapter {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 96px 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.chapter-num {
+  margin: 0 0 14px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  color: var(--dim);
+}
+
+.eyebrow {
+  margin: 0 0 18px;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  color: var(--amber);
+}
+
+.chapter h2 {
+  margin: 0 0 12px;
+  font-weight: 500;
+  font-size: clamp(1.7rem, 2.4vw, 2.2rem);
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+}
+
+.chapter-meta {
+  margin: 0 0 22px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  line-height: 1.7;
+  color: var(--dim);
+  max-width: 34rem;
+}
+
+.blurb {
+  margin: 0;
+  max-width: 33rem;
+  font-size: 1.05rem;
+}
+
+.chapter-link {
+  display: inline-block;
+  margin-top: 26px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+}
+
+/* ---------- Footer ---------- */
+
+.footer {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+  border-top: 1px solid var(--hairline);
+  padding: 96px 0 120px;
+}
+
+.footer-kicker {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.footer-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footer-links a {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.footer-note {
+  margin: 12px 0 0;
+  color: var(--dim);
+  font-size: 0.95rem;
+  max-width: 30rem;
+}
+
+/* ---------- Chapter index nav ---------- */
+
+.chapter-index {
+  position: fixed;
+  left: clamp(20px, 2.2vw, 44px);
+  bottom: 36px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.index-item {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-align: left;
+  color: var(--dim);
+  padding: 2px 0;
+}
+
+.index-item:hover {
+  color: var(--paper);
+}
+
+.index-item.is-active {
+  color: var(--amber);
+}
+
+.index-title {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Entry fade (the only text motion) ---------- */
+
+[data-fade] {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 0.6s ease,
+    transform 0.6s ease;
+}
+
+[data-fade].in-view {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-fade] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ---------- Mobile (<900px): globe sticky on top, rail beneath ---------- */
+
+@media (max-width: 899px) {
+  .globe-pane {
+    position: sticky;
+    width: 100%;
+    height: var(--globe-height-mobile);
+    z-index: 3;
+  }
+
+  .rail {
+    margin-left: 0;
+    padding: 0 clamp(20px, 6vw, 32px) 32px;
+  }
+
+  .hero {
+    min-height: calc(100vh - var(--globe-height-mobile));
+    min-height: calc(100svh - var(--globe-height-mobile));
+    padding: 48px 0;
+  }
+
+  .scroll-cue {
+    position: static;
+    margin-top: 10px;
+  }
+
+  .chapter {
+    min-height: 60vh;
+    min-height: 60svh;
+    justify-content: flex-start;
+    padding: 64px 0;
+  }
+
+  .footer {
+    min-height: 0;
+    padding: 64px 0 140px;
+  }
+
+  .chapter-index {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    flex-direction: row;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 10px calc(12px + env(safe-area-inset-bottom));
+    background: var(--ink);
+    border-top: 1px solid var(--hairline);
+  }
+
+  .index-item {
+    padding: 6px 8px;
+  }
+
+  /* Numbers only on mobile; titles stay as accessible names. */
+  .index-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
