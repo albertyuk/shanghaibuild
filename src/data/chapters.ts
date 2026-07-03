@@ -135,6 +135,6 @@ export const site = {
     { label: "@dacameraroll", href: "https://www.yukalbert.com/school" },
   ],
   footerNote:
-    "Single static page. The globe is drawn locally from night-satellite imagery; nothing on this site tracks you.",
+    "Single static page. The globe is drawn locally from vector coastlines; nothing on this site tracks you.",
   skipLinkLabel: "Skip to chapters",
 };

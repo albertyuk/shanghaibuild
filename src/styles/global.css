@@ -10,8 +10,8 @@
 }
 
 html {
-  background: var(--ink);
-  color-scheme: dark;
+  background: var(--ground);
+  color-scheme: light;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -22,33 +22,33 @@ html {
 
 body {
   margin: 0;
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--ground);
+  color: var(--text);
   font-family: var(--font-serif);
   font-size: 17px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Paper, not amber: the accent is reserved for pins, arcs, active nav, links. */
+/* Text color, not accent: the accent is reserved for pins, arcs, active nav, links. */
 ::selection {
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--text);
+  color: var(--ground);
 }
 
 a {
-  color: var(--amber);
+  color: var(--accent);
   text-decoration-thickness: 1px;
   text-decoration-color: var(--hairline);
   text-underline-offset: 3px;
 }
 
 a:hover {
-  text-decoration-color: var(--amber);
+  text-decoration-color: var(--accent);
 }
 
 :focus-visible {
-  outline: 2px solid var(--paper);
+  outline: 2px solid var(--text);
   outline-offset: 3px;
 }
 
@@ -67,8 +67,8 @@ button {
   left: 14px;
   z-index: 50;
   padding: 8px 14px;
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--ground);
+  color: var(--text);
   border: 1px solid var(--hairline);
   font-family: var(--font-mono);
   font-size: 0.75rem;
@@ -88,7 +88,7 @@ button {
   width: var(--globe-width-desktop);
   height: 100vh;
   overflow: hidden;
-  background: var(--ink);
+  background: var(--ground);
   z-index: 2;
 }
 
@@ -100,7 +100,7 @@ button {
 .globe-placeholder {
   position: absolute;
   inset: 0;
-  background: var(--ink);
+  background: var(--ground);
   display: grid;
   place-items: center;
 }
@@ -109,6 +109,7 @@ button {
   width: min(72%, 78vh);
   aspect-ratio: 1;
   border-radius: 50%;
+  background: var(--wash);
   border: 1px solid var(--hairline);
 }
 
@@ -234,7 +235,7 @@ button {
   font-family: var(--font-mono);
   font-size: 0.74rem;
   letter-spacing: 0.06em;
-  color: var(--amber);
+  color: var(--accent);
 }
 
 .chapter h2 {
@@ -337,12 +338,12 @@ button {
 /* Hover-capable pointers only, so touch taps don't leave a stale highlight. */
 @media (hover: hover) {
   .index-item:hover {
-    color: var(--paper);
+    color: var(--text);
   }
 }
 
 .index-item.is-active {
-  color: var(--amber);
+  color: var(--accent);
 }
 
 .index-title {
@@ -427,7 +428,7 @@ button {
     justify-content: center;
     gap: 6px;
     padding: 12px 10px calc(12px + env(safe-area-inset-bottom));
-    background: var(--ink);
+    background: var(--ground);
     border-top: 1px solid var(--hairline);
   }
 

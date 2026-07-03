@@ -32,5 +32,6 @@ npm run preview  # serve the production build locally
 ```
 
 `dist/` is a plain static site; deploy it to Vercel or Cloudflare Pages as-is
-(framework preset: Vite, output directory: `dist`). Globe textures are served
-locally from `public/textures/`, so no runtime requests leave the origin.
+(framework preset: Vite, output directory: `dist`). The globe is fully vector
+— land shapes come from `public/geo/land-50m.geojson`, served locally — so it
+stays crisp at any zoom and no runtime requests leave the origin.

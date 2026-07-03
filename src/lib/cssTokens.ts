@@ -7,11 +7,15 @@ export function cssToken(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-/** Apply an alpha to a #RRGGBB token value. */
-export function withAlpha(hexColor: string, alpha: number): string {
-  const hex = hexColor.replace("#", "");
-  const r = parseInt(hex.slice(0, 2), 16);
-  const g = parseInt(hex.slice(2, 4), 16);
-  const b = parseInt(hex.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+/**
+ * Apply an alpha to a token color. The token text is whatever the CSS
+ * minifier emitted (3- or 6-digit hex, rgb(), …), so let the browser's own
+ * parser canonicalize it to rgb()/rgba() instead of slicing hex digits.
+ */
+export function withAlpha(color: string, alpha: number): string {
+  const probe = document.createElement("span");
+  probe.style.color = color;
+  const match = probe.style.color.match(/rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)/);
+  if (!match) return color;
+  return `rgba(${match[1]}, ${match[2]}, ${match[3]}, ${alpha})`;
 }

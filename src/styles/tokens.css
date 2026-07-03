@@ -5,12 +5,13 @@
  * via getComputedStyle where Three.js needs color strings).
  */
 :root {
-  /* Palette — grounded in the night-earth satellite texture */
-  --ink: #0A0D13; /* page ground: near-black blue of the night-earth texture */
-  --paper: #EFEAE0; /* primary text: warm print-white */
-  --amber: #D99A3D; /* single accent, sampled from city lights — active pins, arcs, active nav item, links only */
-  --dim: rgba(239, 234, 224, 0.55); /* secondary text */
-  --hairline: rgba(239, 234, 224, 0.14); /* rules */
+  /* Palette — white ground, deep-navy text, one blue accent */
+  --ground: #FFFFFF; /* page ground */
+  --text: #14284B; /* primary text: deep navy */
+  --accent: #1D4ED8; /* single accent — active pins, arcs, active nav item, links only */
+  --dim: rgba(20, 40, 75, 0.62); /* secondary text */
+  --hairline: rgba(20, 40, 75, 0.14); /* rules */
+  --wash: #EAF1FB; /* pale blue: globe ocean + placeholder disc */
 
   /* Type — two families, no more */
   --font-serif: "EB Garamond", Georgia, "Times New Roman", serif;
