@@ -44,6 +44,7 @@ interface GlobeControls {
  */
 const LAND_TILES_URL = "/geo/land-tiles.geojson";
 const COAST_RINGS_URL = "/geo/land-rings.json";
+const BORDERS_URL = "/geo/land-borders.json";
 
 /** Opening view: wide over Asia, where five of the six chapters happened. */
 const HERO_POV = { lat: 26, lng: 106, altitude: 2.4 };
@@ -65,8 +66,14 @@ interface LandPolygon {
   geometry: { type: "Polygon"; coordinates: number[][][] };
 }
 
-/** A coastline ring: a closed run of [lng, lat] points. */
-type CoastRing = number[][];
+/** A run of [lng, lat] points: a coastline ring or a country border. */
+type LineRun = number[][];
+
+/** Path-layer datum: coastlines draw stronger than interior borders. */
+interface PathDatum {
+  points: LineRun;
+  border: boolean;
+}
 
 const tileVertices = (tile: LandPolygon) =>
   tile.geometry.coordinates.reduce((sum, ring) => sum + ring.length, 0);
@@ -81,8 +88,8 @@ const tileVertices = (tile: LandPolygon) =>
 const TILE_CHUNK_VERTICES = 1500;
 const RING_CHUNK_POINTS = 4000;
 
-// Stable accessors for the coastline path layer (a datum is one ring).
-const PATH_POINTS = (ring: object) => ring as number[][];
+// Stable accessors for the coastline/border path layer.
+const PATH_POINTS = (datum: object) => (datum as PathDatum).points;
 const PATH_POINT_LAT = (point: object) => (point as number[])[1];
 const PATH_POINT_LNG = (point: object) => (point as number[])[0];
 
@@ -167,6 +174,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props
     const text = cssToken("--text");
     const accent = cssToken("--accent");
     const coast = withAlpha(text, 0.4);
+    const border = withAlpha(text, 0.22);
     return {
       accent,
       ground: cssToken("--ground"),
@@ -174,7 +182,9 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props
       // Per-datum accessor props run through accessor-fn, which treats a
       // plain string as a property name — colors there must be functions.
       // Memoized once, so layers never re-digest over accessor identity.
-      coastAccessor: () => coast,
+      // Interior borders sit a step quieter than coastlines.
+      pathColorAccessor: (datum: object) =>
+        (datum as PathDatum).border ? border : coast,
       pinDim: withAlpha(accent, INACTIVE_PIN_OPACITY),
       transparent: withAlpha(cssToken("--ground"), 0),
     };
@@ -194,29 +204,38 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props
     [palette],
   );
 
-  // Land tiles and coastline rings, fetched from this origin and streamed
-  // onto the globe in frame-sized chunks. Each step sets a slice prefix of
-  // a stable array, so the stream is idempotent and append-only. On fetch
-  // failure the globe simply renders without land — never blank.
+  // Land tiles, coastline rings, and country borders, fetched from this
+  // origin and streamed onto the globe in frame-sized chunks. Each step
+  // sets a slice prefix of a stable array, so the stream is idempotent
+  // and append-only. On fetch failure the globe simply renders without
+  // that layer — never blank.
   const [land, setLand] = useState<LandPolygon[]>([]);
-  const [coasts, setCoasts] = useState<CoastRing[]>([]);
+  const [paths, setPaths] = useState<PathDatum[]>([]);
   useEffect(() => {
     let cancelled = false;
     let frame = 0;
     const fetchJson = (url: string) =>
       fetch(url).then((res) => (res.ok ? res.json() : null)).catch(() => null);
-    Promise.all([fetchJson(LAND_TILES_URL), fetchJson(COAST_RINGS_URL)]).then(
-      ([tilesGeo, ringsData]: [
+    Promise.all([
+      fetchJson(LAND_TILES_URL),
+      fetchJson(COAST_RINGS_URL),
+      fetchJson(BORDERS_URL),
+    ]).then(
+      ([tilesGeo, ringsData, bordersData]: [
         { features?: LandPolygon[] } | null,
-        { rings?: CoastRing[] } | null,
+        { rings?: LineRun[] } | null,
+        { borders?: LineRun[] } | null,
       ]) => {
         if (cancelled) return;
         const tiles = (tilesGeo?.features ?? [])
           .slice()
           .sort((a, b) => tileVertices(b) - tileVertices(a));
-        const rings = ringsData?.rings ?? [];
+        const lines: PathDatum[] = [
+          ...(ringsData?.rings ?? []).map((points) => ({ points, border: false })),
+          ...(bordersData?.borders ?? []).map((points) => ({ points, border: true })),
+        ];
 
-        // One state update per plan step; caps first, then coastlines.
+        // One state update per plan step; caps first, then the lines.
         const plan: (() => void)[] = [];
         let budget = 0;
         tiles.forEach((tile, i) => {
@@ -228,22 +247,22 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props
           }
         });
         budget = 0;
-        rings.forEach((ring, i) => {
-          budget += ring.length;
-          if (budget >= RING_CHUNK_POINTS || i === rings.length - 1) {
+        lines.forEach((line, i) => {
+          budget += line.points.length;
+          if (budget >= RING_CHUNK_POINTS || i === lines.length - 1) {
             const upTo = i + 1;
-            plan.push(() => setCoasts(rings.slice(0, upTo)));
+            plan.push(() => setPaths(lines.slice(0, upTo)));
             budget = 0;
           }
         });
         // Final step, one frame after the last chunk has committed: give
-        // every coastline line the horizon clip. three-globe stamps each
-        // ring datum with its THREE object, and with stable accessors it
-        // never rebuilds these materials afterwards.
+        // every line the horizon clip. three-globe stamps each datum with
+        // its THREE object, and with stable accessors it never rebuilds
+        // these materials afterwards.
         plan.push(() => {
-          for (const ring of rings) {
-            const line = (ring as { __threeObjPath?: { material?: { needsUpdate: boolean; userData: Record<string, boolean> } } }).__threeObjPath;
-            const material = line?.material;
+          for (const line of lines) {
+            const obj = (line as { __threeObjPath?: { material?: { needsUpdate: boolean; userData: Record<string, boolean> } } }).__threeObjPath;
+            const material = obj?.material;
             if (material && !material.userData.horizonClip) {
               clipBehindHorizon(material as unknown as Parameters<typeof clipBehindHorizon>[0]);
               material.needsUpdate = true;
@@ -408,11 +427,11 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props
           polygonsTransitionDuration={0}
           // Coastlines drawn from the original untiled rings, floating just
           // above the caps — polygon strokes would trace the tile cuts.
-          pathsData={coasts}
+          pathsData={paths}
           pathPoints={PATH_POINTS}
           pathPointLat={PATH_POINT_LAT}
           pathPointLng={PATH_POINT_LNG}
-          pathColor={palette.coastAccessor}
+          pathColor={palette.pathColorAccessor}
           pathPointAlt={0.008}
           pathTransitionDuration={0}
           pointsData={points}
