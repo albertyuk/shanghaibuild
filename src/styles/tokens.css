@@ -11,7 +11,7 @@
   --accent: #1D4ED8; /* single accent — active pins, arcs, active nav item, links only */
   --dim: rgba(20, 40, 75, 0.62); /* secondary text */
   --hairline: rgba(20, 40, 75, 0.14); /* rules */
-  --wash: #EAF1FB; /* pale blue: globe ocean + placeholder disc */
+  --wash: #DCE8F7; /* pale blue: globe ocean + placeholder disc */
 
   /* Type — two families, no more */
   --font-serif: "EB Garamond", Georgia, "Times New Roman", serif;

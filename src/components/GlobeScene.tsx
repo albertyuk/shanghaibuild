@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Globe, { type GlobeMethods } from "react-globe.gl";
-import { MeshBasicMaterial } from "three";
+import { DoubleSide, MeshBasicMaterial } from "three";
 import { chapters, type Chapter } from "../data/chapters";
 import { cssToken, withAlpha } from "../lib/cssTokens";
 
@@ -32,12 +32,18 @@ interface GlobeControls {
 }
 
 /*
- * The globe is fully vector: a flat-shaded sphere plus land polygons from
- * a locally served GeoJSON (1:50M coastlines) — no raster textures, so it
- * stays crisp at any zoom and pixel density. If the land request fails,
- * the sphere, pins, and arcs still render; the site never blanks.
+ * The globe is fully vector: a flat-shaded sphere plus land drawn from
+ * locally served 1:50M coastline data — no raster textures, so it stays
+ * crisp at any zoom and pixel density. Land arrives in two locally built
+ * pieces: polygon caps pre-clipped into 15° tiles (the cap triangulation
+ * in three-globe runs a point-in-polygon filter that is quadratic in ring
+ * vertices, so whole continents freeze the page for seconds while bounded
+ * tiles stay cheap) and the original untiled rings drawn as thin line
+ * paths, so coastlines never reveal the tile cuts. If either request
+ * fails, the sphere, pins, and arcs still render; the site never blanks.
  */
-const LAND_GEOJSON = "/geo/land-50m.geojson";
+const LAND_TILES_URL = "/geo/land-tiles.geojson";
+const COAST_RINGS_URL = "/geo/land-rings.json";
 
 /** Opening view: wide over Asia, where five of the six chapters happened. */
 const HERO_POV = { lat: 26, lng: 106, altitude: 2.4 };
@@ -52,6 +58,33 @@ const INACTIVE_PIN_OPACITY = 0.35;
 // color skips side-wall geometry entirely (the lib treats falsy as "none",
 // but its TS types only admit strings).
 const NO_SIDE_COLOR = (() => null) as unknown as () => string;
+
+interface LandPolygon {
+  type: "Feature";
+  properties: Record<string, unknown>;
+  geometry: { type: "Polygon"; coordinates: number[][][] };
+}
+
+/** A coastline ring: a closed run of [lng, lat] points. */
+type CoastRing = number[][];
+
+const tileVertices = (tile: LandPolygon) =>
+  tile.geometry.coordinates.reduce((sum, ring) => sum + ring.length, 0);
+
+// Even with bounded tiles, building all land in one task would still jam
+// first open, so tiles and coastlines stream onto the globe one budgeted
+// chunk per animation frame — biggest tiles first, so continents appear
+// immediately and islets fill in behind. three-globe keys polygons by a
+// stamped id and skips geometry rebuilds when coordinates match by
+// reference, so a growing array never re-tessellates what is built.
+// Line paths are far cheaper per vertex, hence the looser budget.
+const TILE_CHUNK_VERTICES = 1500;
+const RING_CHUNK_POINTS = 4000;
+
+// Stable accessors for the coastline path layer (a datum is one ring).
+const PATH_POINTS = (ring: object) => ring as number[][];
+const PATH_POINT_LAT = (point: object) => (point as number[])[1];
+const PATH_POINT_LNG = (point: object) => (point as number[])[0];
 
 function chapterPointOfView(chapter: Chapter) {
   const lat = chapter.pins.reduce((sum, pin) => sum + pin.lat, 0) / chapter.pins.length;
@@ -69,11 +102,15 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props
   const palette = useMemo(() => {
     const text = cssToken("--text");
     const accent = cssToken("--accent");
+    const coast = withAlpha(text, 0.4);
     return {
       accent,
       ground: cssToken("--ground"),
       wash: cssToken("--wash"),
-      coast: withAlpha(text, 0.4),
+      // Per-datum accessor props run through accessor-fn, which treats a
+      // plain string as a property name — colors there must be functions.
+      // Memoized once, so layers never re-digest over accessor identity.
+      coastAccessor: () => coast,
       pinDim: withAlpha(accent, INACTIVE_PIN_OPACITY),
       transparent: withAlpha(cssToken("--ground"), 0),
     };
@@ -85,24 +122,71 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props
     () => new MeshBasicMaterial({ color: palette.wash }),
     [palette],
   );
+  // DoubleSide matches the lib's own cap default: ring winding varies
+  // across clipped tiles, and a front-side-only material silently culls
+  // the reversed ones.
   const landMaterial = useMemo(
-    () => new MeshBasicMaterial({ color: palette.ground }),
+    () => new MeshBasicMaterial({ color: palette.ground, side: DoubleSide }),
     [palette],
   );
 
-  // Land shapes, fetched from this origin. On failure the globe simply
-  // renders without land — never blank.
-  const [land, setLand] = useState<object[]>([]);
+  // Land tiles and coastline rings, fetched from this origin and streamed
+  // onto the globe in frame-sized chunks. Each step sets a slice prefix of
+  // a stable array, so the stream is idempotent and append-only. On fetch
+  // failure the globe simply renders without land — never blank.
+  const [land, setLand] = useState<LandPolygon[]>([]);
+  const [coasts, setCoasts] = useState<CoastRing[]>([]);
   useEffect(() => {
     let cancelled = false;
-    fetch(LAND_GEOJSON)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((geo: { features?: object[] } | null) => {
-        if (!cancelled && geo?.features) setLand(geo.features);
-      })
-      .catch(() => {});
+    let frame = 0;
+    const fetchJson = (url: string) =>
+      fetch(url).then((res) => (res.ok ? res.json() : null)).catch(() => null);
+    Promise.all([fetchJson(LAND_TILES_URL), fetchJson(COAST_RINGS_URL)]).then(
+      ([tilesGeo, ringsData]: [
+        { features?: LandPolygon[] } | null,
+        { rings?: CoastRing[] } | null,
+      ]) => {
+        if (cancelled) return;
+        const tiles = (tilesGeo?.features ?? [])
+          .slice()
+          .sort((a, b) => tileVertices(b) - tileVertices(a));
+        const rings = ringsData?.rings ?? [];
+
+        // One state update per plan step; caps first, then coastlines.
+        const plan: (() => void)[] = [];
+        let budget = 0;
+        tiles.forEach((tile, i) => {
+          budget += tileVertices(tile);
+          if (budget >= TILE_CHUNK_VERTICES || i === tiles.length - 1) {
+            const upTo = i + 1;
+            plan.push(() => setLand(tiles.slice(0, upTo)));
+            budget = 0;
+          }
+        });
+        budget = 0;
+        rings.forEach((ring, i) => {
+          budget += ring.length;
+          if (budget >= RING_CHUNK_POINTS || i === rings.length - 1) {
+            const upTo = i + 1;
+            plan.push(() => setCoasts(rings.slice(0, upTo)));
+            budget = 0;
+          }
+        });
+        if (!plan.length) return;
+
+        let step = 0;
+        const feedChunk = () => {
+          if (cancelled) return;
+          plan[step]();
+          step += 1;
+          if (step < plan.length) frame = requestAnimationFrame(feedChunk);
+        };
+        frame = requestAnimationFrame(feedChunk);
+      },
+    );
     return () => {
       cancelled = true;
+      cancelAnimationFrame(frame);
     };
   }, []);
 
@@ -223,9 +307,22 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props
           polygonsData={land}
           polygonCapMaterial={landMaterial}
           polygonSideColor={NO_SIDE_COLOR}
-          polygonStrokeColor={palette.coast}
-          polygonAltitude={0.004}
+          // Altitude must exceed the chord sag of the curvature grid, or
+          // the ocean sphere pokes through tile interiors. The grid is a
+          // sparse spiral, so 5° keeps worst-case interior spans well
+          // under the sag budget (10° left dipping patches).
+          polygonAltitude={0.007}
+          polygonCapCurvatureResolution={5}
           polygonsTransitionDuration={0}
+          // Coastlines drawn from the original untiled rings, floating just
+          // above the caps — polygon strokes would trace the tile cuts.
+          pathsData={coasts}
+          pathPoints={PATH_POINTS}
+          pathPointLat={PATH_POINT_LAT}
+          pathPointLng={PATH_POINT_LNG}
+          pathColor={palette.coastAccessor}
+          pathPointAlt={0.008}
+          pathTransitionDuration={0}
           pointsData={points}
           pointLat={(d) => (d as PointDatum).lat}
           pointLng={(d) => (d as PointDatum).lng}
@@ -251,11 +348,9 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props
           // hover raycaster avoids testing every coastline triangle on
           // each pointer move. OrbitControls drag is unaffected.
           enablePointerInteraction={false}
-          // Without this, three-globe keeps the whole scene hidden until
-          // the night texture loads — and its loader has no error
-          // callback, so a failed texture request would blank the pane
-          // forever. With it, the untextured sphere, pins, and arcs
-          // render immediately and the texture drapes in on arrival.
+          // Without this, three-globe would keep the whole scene hidden
+          // until its globe layer reports ready; render everything as it
+          // arrives instead.
           waitForGlobeReady={false}
           animateIn={animateIn.current}
         />
