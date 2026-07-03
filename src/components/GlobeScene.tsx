@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Globe, { type GlobeMethods } from "react-globe.gl";
 import { MeshBasicMaterial } from "three";
-import { chapters, type Chapter } from "../data/chapters";
+import { chapters, type Chapter, type Pin } from "../data/chapters";
 import { cssToken, withAlpha } from "../lib/cssTokens";
 
 interface Props {
@@ -119,10 +119,41 @@ function clipBehindHorizon<T extends { onBeforeCompile: unknown; customProgramCa
   return material;
 }
 
+/**
+ * Camera center for a chapter: the spherical midpoint of its two farthest
+ * pins. A naive lat/lng average breaks for chapters that span the Pacific
+ * (Shanghai → Pennsylvania averages to the wrong hemisphere entirely);
+ * the farthest-pair midpoint keeps every pin in view and matches the
+ * plain average for regional chapters.
+ */
 function chapterPointOfView(chapter: Chapter) {
-  const lat = chapter.pins.reduce((sum, pin) => sum + pin.lat, 0) / chapter.pins.length;
-  const lng = chapter.pins.reduce((sum, pin) => sum + pin.lng, 0) / chapter.pins.length;
-  return { lat, lng, altitude: chapter.altitude };
+  const { pins, altitude } = chapter;
+  if (pins.length === 1) return { lat: pins[0].lat, lng: pins[0].lng, altitude };
+  const rad = Math.PI / 180;
+  const toVec = (pin: Pin): [number, number, number] => [
+    Math.cos(pin.lat * rad) * Math.cos(pin.lng * rad),
+    Math.cos(pin.lat * rad) * Math.sin(pin.lng * rad),
+    Math.sin(pin.lat * rad),
+  ];
+  const vecs = pins.map(toVec);
+  let [a, b] = [vecs[0], vecs[1]];
+  let minDot = Infinity; // smallest dot product = largest angular distance
+  for (let i = 0; i < vecs.length; i++) {
+    for (let j = i + 1; j < vecs.length; j++) {
+      const d = vecs[i][0] * vecs[j][0] + vecs[i][1] * vecs[j][1] + vecs[i][2] * vecs[j][2];
+      if (d < minDot) {
+        minDot = d;
+        [a, b] = [vecs[i], vecs[j]];
+      }
+    }
+  }
+  const mid = [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+  const len = Math.hypot(mid[0], mid[1], mid[2]) || 1;
+  return {
+    lat: Math.asin(mid[2] / len) / rad,
+    lng: Math.atan2(mid[1] / len, mid[0] / len) / rad,
+    altitude,
+  };
 }
 
 export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props) {

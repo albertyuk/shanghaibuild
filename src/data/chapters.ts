@@ -95,10 +95,17 @@ export const chapters: Chapter[] = [
     role: "Director & Cinematographer",
     dates: "Jul 2024",
     blurb:
-      "Solo-directed, shot, and edited a documentary on the manufacture of MAGA hats in Chinese factories. All-American High School Film Festival Spark Award — top 1% of 2,700+ submissions.",
-    // TODO(ALBERT): replace with actual filming city
-    pins: [{ city: "Wenzhou", country: "China", lat: 28.0038, lng: 120.672 }],
-    altitude: 1.0,
+      "Solo-directed, shot, and edited a documentary following MAGA hats from the factories of Yiwu through the Port of Shanghai to a rally crowd in Pennsylvania. All-American High School Film Festival Spark Award — top 1% of 2,700+ submissions.",
+    pins: [
+      { city: "Yiwu", country: "China", lat: 29.3069, lng: 120.0753 },
+      { city: "Port of Shanghai", country: "China", lat: 30.6289, lng: 122.0639 },
+      { city: "Butler, PA", country: "United States", lat: 40.8612, lng: -79.8953 },
+    ],
+    arcs: [
+      [0, 1],
+      [1, 2],
+    ],
+    altitude: 2.2,
   },
   {
     id: "dacameraroll",
