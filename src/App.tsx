@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { chapters, site } from "./data/chapters";
 import { Hero } from "./components/Hero";
 import { ChapterSection } from "./components/ChapterSection";
@@ -13,11 +13,21 @@ import { useMediaQuery } from "./hooks/useMediaQuery";
 // Three.js loads lazily so first contentful paint never waits on it.
 const GlobeScene = lazy(() => import("./components/GlobeScene"));
 
+/** How long the camera plunge runs before the page goes word-only. */
+const DIVE_MS = 950;
+
 export default function App() {
   const [activeId, setActiveId] = useState<string | null>(null);
+  // "Down to earth": the globe dives into the planet, then the site
+  // switches to the plain text column (the same layout the no-WebGL
+  // fallback uses — words only, nothing waiting on a canvas).
+  const [earthbound, setEarthbound] = useState(false);
+  const [diving, setDiving] = useState(false);
+  const diveTimer = useRef(0);
   const webgl = useMemo(hasWebGL, []);
   const isDesktop = useMediaQuery("(min-width: 900px)");
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const showGlobe = webgl && !earthbound;
 
   // Track which section sits at the center of the reading window. The
   // rootMargin leaves a 10% band around that line — the robust equivalent
@@ -61,12 +71,42 @@ export default function App() {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => () => window.clearTimeout(diveTimer.current), []);
+
+  const toggleEarthbound = () => {
+    if (earthbound) {
+      setEarthbound(false);
+      return;
+    }
+    if (!showGlobe || reducedMotion) {
+      setEarthbound(true);
+      return;
+    }
+    // Let the plunge play, then switch to words.
+    setDiving(true);
+    diveTimer.current = window.setTimeout(() => {
+      setEarthbound(true);
+      setDiving(false);
+    }, DIVE_MS);
+  };
+
   return (
-    <div className={webgl ? "layout" : "layout no-globe"}>
+    <div className={showGlobe ? "layout" : "layout no-globe"}>
       <a className="skip-link" href="#chapters">
         {site.skipLinkLabel}
       </a>
       {webgl && (
+        <button
+          type="button"
+          className="earth-toggle"
+          onClick={toggleEarthbound}
+          disabled={diving}
+          aria-pressed={earthbound}
+        >
+          {earthbound ? site.earthUp : site.earthDown}
+        </button>
+      )}
+      {showGlobe && (
         <div className="globe-pane" aria-hidden="true">
           <GlobeErrorBoundary fallback={<GlobePlaceholder />}>
             <Suspense fallback={<GlobePlaceholder />}>
@@ -74,6 +114,7 @@ export default function App() {
                 activeId={activeId}
                 isDesktop={isDesktop}
                 reducedMotion={reducedMotion}
+                diving={diving}
               />
             </Suspense>
           </GlobeErrorBoundary>

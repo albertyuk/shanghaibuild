@@ -3,11 +3,14 @@ import Globe, { type GlobeMethods } from "react-globe.gl";
 import { MeshBasicMaterial } from "three";
 import { chapters, type Chapter, type Pin } from "../data/chapters";
 import { cssToken, withAlpha } from "../lib/cssTokens";
+import { formatCoordinate } from "../lib/coords";
 
 interface Props {
   activeId: string | null;
   isDesktop: boolean;
   reducedMotion: boolean;
+  /** True while the "down to earth" dive is playing. */
+  diving: boolean;
 }
 
 interface PointDatum {
@@ -51,8 +54,17 @@ const HERO_POV = { lat: 26, lng: 106, altitude: 2.4 };
 const FLIGHT_MS = 1200;
 /** Latest-wins debounce: fast scrolling never queues stale camera flights. */
 const FLIGHT_DEBOUNCE_MS = 160;
+/** Multi-pin chapters tour their pins: fly, dwell, fly on. */
+const TOUR_FLIGHT_MS = 1600;
+const TOUR_DWELL_MS = 1500;
+/** The "down to earth" plunge. */
+const DIVE_MS = 900;
+const DIVE_ALTITUDE = 0.03;
 const IDLE_ROTATE_SPEED = 0.35;
 const INACTIVE_PIN_OPACITY = 0.35;
+/** Draw-in timings — the slow reveal for arcs and pins. */
+const ARC_ENTER_MS = 700;
+const PIN_ENTER_MS = 500;
 
 // Stable identity matters: a new accessor function per render would make
 // three-globe tear down and re-tessellate every land polygon. A null side
@@ -126,23 +138,25 @@ function clipBehindHorizon<T extends { onBeforeCompile: unknown; customProgramCa
   return material;
 }
 
+const RAD = Math.PI / 180;
+
+const pinVec = (pin: Pin): [number, number, number] => [
+  Math.cos(pin.lat * RAD) * Math.cos(pin.lng * RAD),
+  Math.cos(pin.lat * RAD) * Math.sin(pin.lng * RAD),
+  Math.sin(pin.lat * RAD),
+];
+
 /**
- * Camera center for a chapter: the spherical midpoint of its two farthest
- * pins. A naive lat/lng average breaks for chapters that span the Pacific
- * (Shanghai → Pennsylvania averages to the wrong hemisphere entirely);
- * the farthest-pair midpoint keeps every pin in view and matches the
- * plain average for regional chapters.
+ * Overview camera for a chapter (used under reduced motion, where the
+ * multi-pin tour is skipped): the spherical midpoint of the two farthest
+ * pins, at an altitude that keeps every pin on the visible cap. A naive
+ * lat/lng average breaks for chapters spanning the Pacific — Shanghai →
+ * Pennsylvania averages to the wrong hemisphere entirely.
  */
-function chapterPointOfView(chapter: Chapter) {
+function chapterOverview(chapter: Chapter) {
   const { pins, altitude } = chapter;
   if (pins.length === 1) return { lat: pins[0].lat, lng: pins[0].lng, altitude };
-  const rad = Math.PI / 180;
-  const toVec = (pin: Pin): [number, number, number] => [
-    Math.cos(pin.lat * rad) * Math.cos(pin.lng * rad),
-    Math.cos(pin.lat * rad) * Math.sin(pin.lng * rad),
-    Math.sin(pin.lat * rad),
-  ];
-  const vecs = pins.map(toVec);
+  const vecs = pins.map(pinVec);
   let [a, b] = [vecs[0], vecs[1]];
   let minDot = Infinity; // smallest dot product = largest angular distance
   for (let i = 0; i < vecs.length; i++) {
@@ -156,16 +170,25 @@ function chapterPointOfView(chapter: Chapter) {
   }
   const mid = [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
   const len = Math.hypot(mid[0], mid[1], mid[2]) || 1;
+  // Half the farthest-pair separation, padded, decides how high to sit.
+  const spread = Math.acos(Math.max(-1, Math.min(1, minDot))) / 2;
+  const fitAltitude = 1 / Math.cos(Math.min(spread + 0.25, 1.4)) - 1;
   return {
-    lat: Math.asin(mid[2] / len) / rad,
-    lng: Math.atan2(mid[1] / len, mid[0] / len) / rad,
-    altitude,
+    lat: Math.asin(mid[2] / len) / RAD,
+    lng: Math.atan2(mid[1] / len, mid[0] / len) / RAD,
+    altitude: Math.max(altitude, fitAltitude),
   };
 }
 
-export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props) {
+/** The lng equivalent (±360k) nearest to a reference, so camera tweens
+ *  take the short way around — Shanghai → Pennsylvania flies the Pacific,
+ *  not backwards over Europe. */
+const nearestLng = (lng: number, ref: number) => lng - 360 * Math.round((lng - ref) / 360);
+
+export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving }: Props) {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const hudRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [ready, setReady] = useState(false);
   const hasScrolled = useRef(false);
@@ -391,21 +414,76 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props
       .setPixelRatio(Math.min(window.devicePixelRatio || 1, isDesktop ? 2 : 1.5));
   }, [ready, isDesktop]);
 
-  // Camera flight on chapter change — only the latest target wins.
+  // Camera flight on chapter change — only the latest target wins, and
+  // multi-pin chapters tour their pins in story order: fly close to the
+  // first, dwell, fly on to the next. Leaving the chapter (or diving)
+  // cancels the remaining stops.
   useEffect(() => {
-    if (!ready) return;
-    const timer = window.setTimeout(() => {
-      const chapter = chapters.find((ch) => ch.id === activeId);
-      globeRef.current?.pointOfView(
-        chapter ? chapterPointOfView(chapter) : HERO_POV,
-        reducedMotion ? 0 : FLIGHT_MS,
-      );
-    }, FLIGHT_DEBOUNCE_MS);
-    return () => window.clearTimeout(timer);
-  }, [activeId, ready, reducedMotion]);
+    if (!ready || diving) return;
+    const timers: number[] = [];
+    timers.push(
+      window.setTimeout(() => {
+        const globe = globeRef.current;
+        if (!globe) return;
+        const chapter = chapters.find((ch) => ch.id === activeId);
+        if (!chapter) {
+          globe.pointOfView(HERO_POV, reducedMotion ? 0 : FLIGHT_MS);
+          return;
+        }
+        if (reducedMotion) {
+          globe.pointOfView(chapterOverview(chapter), 0);
+          return;
+        }
+        // Keep every leg on the short way around the globe.
+        let refLng = (globe.pointOfView() as { lng: number }).lng;
+        let at = 0;
+        chapter.pins.forEach((pin, i) => {
+          const lng = nearestLng(pin.lng, refLng);
+          refLng = lng;
+          const target = { lat: pin.lat, lng, altitude: chapter.altitude };
+          const flight = i === 0 ? FLIGHT_MS : TOUR_FLIGHT_MS;
+          if (i === 0) {
+            globe.pointOfView(target, flight);
+          } else {
+            const startAt = at + TOUR_DWELL_MS;
+            timers.push(
+              window.setTimeout(() => globeRef.current?.pointOfView(target, flight), startAt),
+            );
+            at = startAt;
+          }
+          at += flight;
+        });
+      }, FLIGHT_DEBOUNCE_MS),
+    );
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [activeId, ready, reducedMotion, diving]);
+
+  // The "down to earth" dive: plunge straight into the active place.
+  useEffect(() => {
+    if (!diving || !ready) return;
+    const globe = globeRef.current;
+    if (!globe) return;
+    const chapter = chapters.find((ch) => ch.id === activeId);
+    const target = chapter ? chapter.pins[0] : HERO_POV;
+    const refLng = (globe.pointOfView() as { lng: number }).lng;
+    globe.pointOfView(
+      { lat: target.lat, lng: nearestLng(target.lng, refLng), altitude: DIVE_ALTITUDE },
+      reducedMotion ? 0 : DIVE_MS,
+    );
+  }, [diving, ready, activeId, reducedMotion]);
+
+  // Flight-instrument readout: written straight to the DOM on every
+  // camera move — no React re-renders at 60fps.
+  const handleZoom = useCallback((pov: { lat: number; lng: number; altitude: number }) => {
+    const hud = hudRef.current;
+    if (!hud) return;
+    const km = Math.max(0, Math.round(pov.altitude * 6371));
+    hud.textContent = `${formatCoordinate(pov.lat, nearestLng(pov.lng, 0))} · ${km} km`;
+  }, []);
 
   return (
     <div ref={containerRef} className="globe-canvas">
+      <div ref={hudRef} className="globe-hud" aria-hidden="true" />
       {size.width > 0 && size.height > 0 && (
         <Globe
           ref={globeRef}
@@ -442,7 +520,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props
           }
           pointRadius={(d) => ((d as PointDatum).chapterId === activeId ? 0.6 : 0.32)}
           pointAltitude={(d) => ((d as PointDatum).chapterId === activeId ? 0.02 : 0.008)}
-          pointsTransitionDuration={0}
+          pointsTransitionDuration={reducedMotion ? 0 : PIN_ENTER_MS}
           arcsData={arcs}
           arcStartLat={(d) => (d as ArcDatum).startLat}
           arcStartLng={(d) => (d as ArcDatum).startLng}
@@ -453,7 +531,8 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion }: Props
           arcDashLength={reducedMotion ? 1 : 0.35}
           arcDashGap={reducedMotion ? 0 : 0.5}
           arcDashAnimateTime={reducedMotion ? 0 : 1500}
-          arcsTransitionDuration={0}
+          arcsTransitionDuration={reducedMotion ? 0 : ARC_ENTER_MS}
+          onZoom={handleZoom}
           rendererConfig={{ antialias: true, alpha: true }}
           // No tooltips or click targets on the globe — disabling the
           // hover raycaster avoids testing every coastline triangle on

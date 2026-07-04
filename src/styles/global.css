@@ -79,6 +79,33 @@ button {
   transform: none;
 }
 
+/* ---------- "Down to earth" toggle ---------- */
+
+.earth-toggle {
+  position: fixed;
+  top: clamp(16px, 2vw, 28px);
+  right: clamp(16px, 2vw, 28px);
+  z-index: 20;
+  padding: 7px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+  background: var(--ground);
+  border: 1px solid var(--hairline);
+}
+
+.earth-toggle:hover {
+  color: var(--text);
+  border-color: var(--dim);
+}
+
+.earth-toggle:disabled {
+  cursor: default;
+  color: var(--hairline);
+}
+
 /* ---------- Globe pane ---------- */
 
 .globe-pane {
@@ -95,6 +122,19 @@ button {
 .globe-canvas {
   position: absolute;
   inset: 0;
+}
+
+/* Flight-instrument readout: live camera coordinates + altitude. */
+.globe-hud {
+  position: absolute;
+  right: clamp(16px, 2vw, 28px);
+  bottom: 20px;
+  z-index: 5;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+  pointer-events: none;
 }
 
 .globe-placeholder {
