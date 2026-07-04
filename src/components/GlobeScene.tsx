@@ -54,9 +54,14 @@ const HERO_POV = { lat: 26, lng: 106, altitude: 2.4 };
 const FLIGHT_MS = 1200;
 /** Latest-wins debounce: fast scrolling never queues stale camera flights. */
 const FLIGHT_DEBOUNCE_MS = 160;
-/** Multi-pin chapters tour their pins: fly, dwell, fly on. */
-const TOUR_FLIGHT_MS = 1600;
-const TOUR_DWELL_MS = 1500;
+/** Multi-pin chapters tour their pins: fly, dwell, fly on. A leg's
+ *  duration grows with its length, so short hops don't crawl and ocean
+ *  crossings don't whip. */
+const TOUR_LEG_MS = 1600;
+const TOUR_DWELL_MS = 700;
+/** Mid-leg climb per radian of leg length: long crossings rise for
+ *  context, neighboring cities stay low. */
+const TOUR_CLIMB = 0.45;
 /** The "down to earth" plunge. */
 const DIVE_MS = 900;
 const DIVE_ALTITUDE = 0.03;
@@ -417,10 +422,54 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
   // Camera flight on chapter change — only the latest target wins, and
   // multi-pin chapters tour their pins in story order: fly close to the
   // first, dwell, fly on to the next. Leaving the chapter (or diving)
-  // cancels the remaining stops.
+  // cancels the remaining stops mid-flight.
   useEffect(() => {
     if (!ready || diving) return;
     const timers: number[] = [];
+    let frame = 0;
+    let cancelled = false;
+
+    const easeInOut = (t: number) =>
+      t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+
+    // Tour legs slerp the camera along the great circle between the two
+    // pins — the exact track the arc draws. (pointOfView tweens lat/lng
+    // linearly, a straight line in map space; over the Pacific that path
+    // runs thousands of km south of the arc.) The camera climbs with the
+    // leg's length and settles back to touring altitude.
+    const flyLeg = (from: Pin, to: Pin, altitude: number, onArrive: () => void) => {
+      const a = pinVec(from);
+      const b = pinVec(to);
+      const dot = Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]));
+      const omega = Math.acos(dot);
+      const ms = TOUR_LEG_MS * (0.75 + omega * 0.5);
+      const t0 = performance.now();
+      const step = (now: number) => {
+        if (cancelled) return;
+        const t = Math.min(1, (now - t0) / ms);
+        const e = easeInOut(t);
+        const [wa, wb] =
+          omega < 1e-6
+            ? [1 - e, e]
+            : [Math.sin((1 - e) * omega) / Math.sin(omega), Math.sin(e * omega) / Math.sin(omega)];
+        const x = wa * a[0] + wb * b[0];
+        const y = wa * a[1] + wb * b[1];
+        const z = wa * a[2] + wb * b[2];
+        const len = Math.hypot(x, y, z) || 1;
+        globeRef.current?.pointOfView(
+          {
+            lat: Math.asin(z / len) / RAD,
+            lng: Math.atan2(y, x) / RAD,
+            altitude: altitude + omega * TOUR_CLIMB * Math.sin(Math.PI * e) ** 2,
+          },
+          0,
+        );
+        if (t < 1) frame = requestAnimationFrame(step);
+        else onArrive();
+      };
+      frame = requestAnimationFrame(step);
+    };
+
     timers.push(
       window.setTimeout(() => {
         const globe = globeRef.current;
@@ -434,28 +483,34 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           globe.pointOfView(chapterOverview(chapter), 0);
           return;
         }
-        // Keep every leg on the short way around the globe.
-        let refLng = (globe.pointOfView() as { lng: number }).lng;
-        let at = 0;
-        chapter.pins.forEach((pin, i) => {
-          const lng = nearestLng(pin.lng, refLng);
-          refLng = lng;
-          const target = { lat: pin.lat, lng, altitude: chapter.altitude };
-          const flight = i === 0 ? FLIGHT_MS : TOUR_FLIGHT_MS;
-          if (i === 0) {
-            globe.pointOfView(target, flight);
-          } else {
-            const startAt = at + TOUR_DWELL_MS;
-            timers.push(
-              window.setTimeout(() => globeRef.current?.pointOfView(target, flight), startAt),
-            );
-            at = startAt;
-          }
-          at += flight;
-        });
+        // The approach flight has no line to follow — a plain tween, on
+        // the short way around.
+        const first = chapter.pins[0];
+        const refLng = (globe.pointOfView() as { lng: number }).lng;
+        globe.pointOfView(
+          { lat: first.lat, lng: nearestLng(first.lng, refLng), altitude: chapter.altitude },
+          FLIGHT_MS,
+        );
+        const tourFrom = (i: number) => {
+          if (i + 1 >= chapter.pins.length) return;
+          timers.push(
+            window.setTimeout(
+              () =>
+                flyLeg(chapter.pins[i], chapter.pins[i + 1], chapter.altitude, () =>
+                  tourFrom(i + 1),
+                ),
+              TOUR_DWELL_MS,
+            ),
+          );
+        };
+        timers.push(window.setTimeout(() => tourFrom(0), FLIGHT_MS));
       }, FLIGHT_DEBOUNCE_MS),
     );
-    return () => timers.forEach((t) => window.clearTimeout(t));
+    return () => {
+      cancelled = true;
+      timers.forEach((t) => window.clearTimeout(t));
+      cancelAnimationFrame(frame);
+    };
   }, [activeId, ready, reducedMotion, diving]);
 
   // The "down to earth" dive: plunge straight into the active place.
