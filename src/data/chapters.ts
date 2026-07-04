@@ -36,7 +36,7 @@ export const chapters: Chapter[] = [
     blurb:
       "Built agentic AI workflows in Dify and Apify that automate competitive brand research and influencer evaluation across SHEIN's portfolio of 10+ sub-brands, cutting multi-day manual research to minutes per brand. Shipped bilingual report generation with live web-search grounding and anti-fabrication guardrails, plus an end-to-end Instagram intelligence pipeline that turns captions and engagement metrics into structured spreadsheets.",
     pins: [{ city: "Shanghai", country: "China", lat: 31.2304, lng: 121.4737 }],
-    altitude: 0.4,
+    altitude: 0.65,
   },
   {
     id: "chenman",
@@ -47,7 +47,7 @@ export const chapters: Chapter[] = [
     blurb:
       "Assisted photographer Chen Man on roughly 20 commercial fashion shoots — lighting setups, on-set production logistics, and shoot scheduling.",
     pins: [{ city: "Shanghai", country: "China", lat: 31.2304, lng: 121.4737 }],
-    altitude: 0.35,
+    altitude: 0.6,
     link: "https://www.yukalbert.com/photograph",
   },
   {
@@ -62,7 +62,7 @@ export const chapters: Chapter[] = [
       { city: "Shenzhen", country: "China", lat: 22.5431, lng: 114.0579 },
     ],
     arcs: [[0, 1]],
-    altitude: 0.5,
+    altitude: 0.8,
     link: "https://www.yukalbert.com/filmset",
   },
   {
@@ -85,7 +85,7 @@ export const chapters: Chapter[] = [
       [1, 2],
       [2, 3],
     ],
-    altitude: 0.55,
+    altitude: 0.85,
     link: "https://www.yukalbert.com/central-asia",
   },
   {
@@ -105,7 +105,7 @@ export const chapters: Chapter[] = [
       [0, 1],
       [1, 2],
     ],
-    altitude: 0.55,
+    altitude: 0.85,
   },
   {
     id: "dacameraroll",
@@ -118,7 +118,7 @@ export const chapters: Chapter[] = [
     pins: [
       { city: "Deerfield, MA", country: "United States", lat: 42.5459, lng: -72.6037 },
     ],
-    altitude: 0.4,
+    altitude: 0.65,
     link: "https://www.yukalbert.com/school",
   },
 ];
