@@ -74,6 +74,8 @@ const ARC_ENTER_MS = 700;
 const PIN_ENTER_MS = 500;
 /** The briefing-map graticule: faint electric grid over the whole map. */
 const GRID_OPACITY = 0.18;
+/** Active pins rise to this altitude; crosshairs track the needle tip. */
+const NEEDLE_ALT = 0.05;
 
 // Stable identity matters: a new accessor function per render would make
 // three-globe tear down and re-tessellate every land polygon. A null side
@@ -253,8 +255,6 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
       // Memoized once, so layers never re-digest over accessor identity.
       pathColorAccessor: (datum: object) =>
         (datum as PathDatum).kind === "border" ? border : coast,
-      // Radar rings fade as they propagate outward.
-      ringColorAccessor: () => (t: number) => withAlpha(accent, 0.35 * (1 - t)),
     };
   }, []);
 
@@ -437,24 +437,20 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
       }));
   }, [activeId]);
 
-  // Radar rings sweep out from the active chapter's pins — the briefing
-  // map's operation-zone pulse. Inherently ambient, so reduced motion
-  // gets none at all.
-  const rings = useMemo<{ lat: number; lng: number }[]>(() => {
-    if (reducedMotion) return [];
+  // Every active-chapter pin gets a briefing crosshair, tracked on
+  // screen each frame (desktop only — the overlay is hidden on mobile).
+  const activePins = useMemo<Pin[]>(() => {
+    if (!isDesktop) return [];
     const chapter = chapters.find((ch) => ch.id === activeId);
-    return chapter ? chapter.pins.map((pin) => ({ lat: pin.lat, lng: pin.lng })) : [];
-  }, [activeId, reducedMotion]);
+    return chapter ? [...chapter.pins] : [];
+  }, [activeId, isDesktop]);
 
   // Pins whose photo callouts get a leader line drawn to them (matches
   // the panels PhotoCallouts renders, in the same order).
-  const photoPins = useMemo<Pin[]>(() => {
-    if (!isDesktop) return [];
-    const chapter = chapters.find((ch) => ch.id === activeId);
-    return chapter
-      ? chapter.pins.filter((pin) => pin.photos && pin.photos.length > 0).slice(0, 2)
-      : [];
-  }, [activeId, isDesktop]);
+  const photoPins = useMemo<Pin[]>(
+    () => activePins.filter((pin) => pin.photos && pin.photos.length > 0).slice(0, 2),
+    [activePins],
+  );
 
   // Leader lines: from each callout panel's edge to its pin's projected
   // screen position, re-aimed every frame (the camera is usually moving,
@@ -464,7 +460,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
   const leaderRef = useRef<SVGSVGElement | null>(null);
   useEffect(() => {
     const svg = leaderRef.current;
-    if (!ready || !svg || !photoPins.length) return;
+    if (!ready || !svg || !activePins.length) return;
     let frame = 0;
     const update = () => {
       frame = requestAnimationFrame(update);
@@ -473,42 +469,54 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
       const cam = globe.camera().position;
       const camLen = Math.hypot(cam.x, cam.y, cam.z) || 1;
       const horizon = GLOBE_RADIUS / camLen - 0.005;
-      const panels = document.querySelectorAll<HTMLElement>(".photo-callout");
-      const lines = svg.querySelectorAll<SVGPolylineElement>("polyline");
-      const dots = svg.querySelectorAll<SVGCircleElement>("circle");
-      photoPins.forEach((pin, i) => {
-        const line = lines[i];
-        const dot = dots[i];
-        const panel = panels[i];
-        if (!line || !dot) return;
-        const pos = globe.getCoords(pin.lat, pin.lng, 0.06);
+      const behindHorizon = (pin: Pin) => {
+        const pos = globe.getCoords(pin.lat, pin.lng, NEEDLE_ALT);
         const posLen = Math.hypot(pos.x, pos.y, pos.z) || 1;
-        const facing =
-          (pos.x * cam.x + pos.y * cam.y + pos.z * cam.z) / (posLen * camLen);
-        if (!panel || facing < horizon) {
-          line.style.visibility = "hidden";
-          dot.style.visibility = "hidden";
+        return (
+          (pos.x * cam.x + pos.y * cam.y + pos.z * cam.z) / (posLen * camLen) < horizon
+        );
+      };
+      // Crosshairs on every active pin.
+      const crosses = svg.querySelectorAll<SVGPathElement>(".leader-cross");
+      activePins.forEach((pin, i) => {
+        const cross = crosses[i];
+        if (!cross) return;
+        if (behindHorizon(pin)) {
+          cross.style.visibility = "hidden";
           return;
         }
-        const screen = globe.getScreenCoords(pin.lat, pin.lng, 0.06);
+        const screen = globe.getScreenCoords(pin.lat, pin.lng, NEEDLE_ALT);
+        cross.setAttribute("transform", `translate(${screen.x}, ${screen.y})`);
+        cross.style.visibility = "visible";
+      });
+      // Leader lines from each photo panel to its pin.
+      const panels = document.querySelectorAll<HTMLElement>(".photo-callout");
+      const lines = svg.querySelectorAll<SVGPolylineElement>("polyline");
+      photoPins.forEach((pin, i) => {
+        const line = lines[i];
+        const panel = panels[i];
+        if (!line) return;
+        if (!panel || behindHorizon(pin)) {
+          line.style.visibility = "hidden";
+          return;
+        }
+        const screen = globe.getScreenCoords(pin.lat, pin.lng, NEEDLE_ALT);
         const rect = panel.getBoundingClientRect();
-        // Panels dock at the pane's right edge; the line leaves from
-        // their left side, toward the map.
+        // Panels live on the rail side, right of the map; the line
+        // leaves from their left edge, crosses the pane boundary, and
+        // lands on the pin's crosshair.
         const ax = rect.left;
         const ay = rect.top + rect.height / 2;
         line.setAttribute(
           "points",
           `${ax},${ay} ${ax - 26},${ay} ${screen.x},${screen.y}`,
         );
-        dot.setAttribute("cx", String(screen.x));
-        dot.setAttribute("cy", String(screen.y));
         line.style.visibility = "visible";
-        dot.style.visibility = "visible";
       });
     };
     frame = requestAnimationFrame(update);
     return () => cancelAnimationFrame(frame);
-  }, [ready, photoPins]);
+  }, [ready, activePins, photoPins]);
 
   // Idle rotate: desktop hero only, killed permanently on first scroll.
   const applyAutoRotate = useCallback(() => {
@@ -739,19 +747,29 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
   return (
     <div ref={containerRef} className="globe-canvas">
       <div ref={hudRef} className="globe-hud" aria-hidden="true" />
-      {photoPins.length > 0 && (
+      {activePins.length > 0 && (
         <svg
           ref={leaderRef}
           className="leader-lines"
           key={activeId ?? "none"}
           aria-hidden="true"
         >
+          {/* Lines wait for their panels to finish materializing. */}
           {photoPins.map((pin, i) => (
-            <g key={`${pin.lat},${pin.lng}`}>
-              {/* The line waits for its panel to finish materializing. */}
-              <polyline pathLength={1} style={{ animationDelay: `${400 + i * 140}ms` }} />
-              <circle r={3.5} style={{ animationDelay: `${640 + i * 140}ms` }} />
-            </g>
+            <polyline
+              key={`${pin.lat},${pin.lng}`}
+              pathLength={1}
+              style={{ animationDelay: `${400 + i * 140}ms` }}
+            />
+          ))}
+          {/* Briefing crosshairs on every pin of the active chapter. */}
+          {activePins.map((pin, i) => (
+            <path
+              key={`${pin.lat},${pin.lng}`}
+              className="leader-cross"
+              d="M -11 0 H -4 M 4 0 H 11 M 0 -11 V -4 M 0 4 V 11"
+              style={{ animationDelay: `${300 + i * 90}ms` }}
+            />
           ))}
         </svg>
       )}
@@ -791,9 +809,12 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
             (d as PointDatum).chapterId === activeId ? palette.accent : palette.pinDim
           }
           // Active pins are briefing-map needles: thin tall stalks rising
-          // off the chart; inactive locations stay low dots.
-          pointRadius={(d) => ((d as PointDatum).chapterId === activeId ? 0.35 : 0.32)}
-          pointAltitude={(d) => ((d as PointDatum).chapterId === activeId ? 0.06 : 0.008)}
+          // off the chart, tipped by the SVG crosshair; inactive
+          // locations stay low dots.
+          pointRadius={(d) => ((d as PointDatum).chapterId === activeId ? 0.18 : 0.32)}
+          pointAltitude={(d) =>
+            (d as PointDatum).chapterId === activeId ? NEEDLE_ALT : 0.008
+          }
           pointsTransitionDuration={reducedMotion ? 0 : PIN_ENTER_MS}
           arcsData={arcs}
           arcStartLat={(d) => (d as ArcDatum).startLat}
@@ -808,12 +829,6 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           arcDashAnimateTime={reducedMotion ? 0 : 1200}
           arcsTransitionDuration={reducedMotion ? 0 : ARC_ENTER_MS}
           showGraticules={true}
-          ringsData={rings}
-          ringColor={palette.ringColorAccessor}
-          ringMaxRadius={5}
-          ringPropagationSpeed={1.1}
-          ringRepeatPeriod={1600}
-          ringAltitude={0.0135}
           onZoom={handleZoom}
           rendererConfig={{ antialias: true, alpha: true }}
           // No tooltips or click targets on the globe — disabling the

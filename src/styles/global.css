@@ -239,12 +239,11 @@ button {
  * draw — rather than popping in. */
 .photo-callouts {
   position: fixed;
-  top: 44px;
-  left: auto;
-  /* Docked just inside the map pane's right edge, over open ocean in
-   * most framings — the reference parks its observation panels on the
-   * right too. */
-  right: calc(100vw - var(--globe-width-desktop) + 20px);
+  /* Off the map entirely: the page's bottom-right corner, where the
+   * text column (vertically centered) reliably leaves empty space. The
+   * leader line crosses the pane boundary to reach its pin. */
+  right: clamp(16px, 2vw, 28px);
+  bottom: 40px;
   z-index: 6;
   display: flex;
   flex-direction: column;
@@ -338,12 +337,14 @@ button {
 }
 
 /* Leader lines from panel edge to pin, aimed per-frame from the globe
- * scene. Draw on from the panel outward; the terminal ring fades in. */
+ * scene. Draw on from the panel outward; the terminal crosshair fades
+ * in. Fixed to the viewport (not the pane) so the run from the rail-side
+ * panel across the pane boundary is never clipped. */
 .leader-lines {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   z-index: 5;
   pointer-events: none;
   overflow: visible;
@@ -358,10 +359,11 @@ button {
   animation: leader-draw 300ms var(--ease-slip) both;
 }
 
-.leader-lines circle {
+/* The briefing crosshair: a plus with a gapped center. */
+.leader-lines .leader-cross {
   fill: none;
   stroke: var(--accent);
-  stroke-width: 1;
+  stroke-width: 1.2;
   animation: leader-dot 200ms var(--ease-slip) both;
 }
 
