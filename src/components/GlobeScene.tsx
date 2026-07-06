@@ -71,6 +71,9 @@ const TOUR_DWELL_MS = 400;
 const TOUR_CLIMB = 0.25;
 /** The finale: pull back until the whole journey fits in frame. */
 const TOUR_OVERVIEW_MS = 1800;
+/** Waypoints confirm on final approach: the lock-on flicker fires this
+ *  far before the camera actually arrives at the pin. */
+const LOCK_LEAD_MS = 1000;
 /** The "down to earth" plunge. */
 const DIVE_MS = 900;
 const DIVE_ALTITUDE = 0.03;
@@ -742,15 +745,27 @@ export default function GlobeScene({
     // linearly, a straight line in map space; over the Pacific that path
     // runs thousands of km south of the arc.) The camera climbs with the
     // leg's length and settles back to touring altitude.
-    const flyLeg = (from: Pin, to: Pin, altitude: number, onArrive: () => void) => {
+    const flyLeg = (
+      from: Pin,
+      to: Pin,
+      altitude: number,
+      onApproach: () => void,
+      onArrive: () => void,
+    ) => {
       const a = pinVec(from);
       const b = pinVec(to);
       const dot = Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]));
       const omega = Math.acos(dot);
       const ms = TOUR_LEG_MS * (0.75 + omega * 0.5);
       const t0 = performance.now();
+      let approached = false;
       const step = (now: number) => {
         if (cancelled) return;
+        // Final approach: the destination confirms while still inbound.
+        if (!approached && now - t0 >= ms - LOCK_LEAD_MS) {
+          approached = true;
+          onApproach();
+        }
         const t = Math.min(1, (now - t0) / ms);
         const e = easeInOut(t);
         const [wa, wb] =
@@ -798,9 +813,9 @@ export default function GlobeScene({
           { lat: first.lat, lng: nearestLng(first.lng, refLng), altitude: chapter.altitude },
           FLIGHT_MS,
         );
-        // tourFrom(i) runs the moment the camera is AT pin i — the
-        // lock-on instant for that waypoint. The approach flight feeds
-        // it pin 0; every completed leg feeds it the next stop.
+        // tourFrom(i) runs the moment the camera is AT pin i. Locks fire
+        // earlier — on final approach — so the max here is a backstop in
+        // case a lead timer was skipped.
         const tourFrom = (i: number) => {
           setLockedCount((count) => Math.max(count, i + 1));
           if (i + 1 >= chapter.pins.length) {
@@ -825,13 +840,25 @@ export default function GlobeScene({
           timers.push(
             window.setTimeout(
               () =>
-                flyLeg(chapter.pins[i], chapter.pins[i + 1], chapter.altitude, () =>
-                  tourFrom(i + 1),
+                flyLeg(
+                  chapter.pins[i],
+                  chapter.pins[i + 1],
+                  chapter.altitude,
+                  () => setLockedCount((count) => Math.max(count, i + 2)),
+                  () => tourFrom(i + 1),
                 ),
               TOUR_DWELL_MS,
             ),
           );
         };
+        // The first waypoint also confirms on final approach, a lead
+        // before the approach flight actually lands on it.
+        timers.push(
+          window.setTimeout(
+            () => setLockedCount((count) => Math.max(count, 1)),
+            Math.max(0, FLIGHT_MS - LOCK_LEAD_MS),
+          ),
+        );
         timers.push(window.setTimeout(() => tourFrom(0), FLIGHT_MS));
       }, FLIGHT_DEBOUNCE_MS),
     );
