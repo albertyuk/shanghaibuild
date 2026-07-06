@@ -3,6 +3,7 @@ import { chapters as sourceChapters, site as sourceSite } from "../data/chapters
 import type { EditableChapter, SiteContent } from "./types";
 import { generateChaptersTs } from "./generate";
 import { MapPicker } from "./MapPicker";
+import { bytesToBase64, publishFile, textToBase64 } from "./publish";
 
 /**
  * The private content editor (/edit.html — unlinked, noindexed). The site
@@ -84,6 +85,14 @@ export function EditorApp() {
   const [wrongPass, setWrongPass] = useState(false);
   const [dropped, setDropped] = useState<Record<string, DroppedFile>>({});
   const [dragOver, setDragOver] = useState<string | null>(null);
+  // Publish target + token. The token lives in this state only — never
+  // stored, gone when the tab closes.
+  const [ghToken, setGhToken] = useState("");
+  const [ghOwner, setGhOwner] = useState("albertyuk");
+  const [ghRepo, setGhRepo] = useState("shanghaibuild");
+  const [ghBranch, setGhBranch] = useState("main");
+  const [publishing, setPublishing] = useState(false);
+  const [publishLog, setPublishLog] = useState<string[]>([]);
 
   const errors = useMemo(() => validate(chapters, site), [chapters, site]);
   const output = useMemo(
@@ -173,6 +182,37 @@ export function EditorApp() {
     if (!src) return null;
     const name = src.replace(/^\/photos\//, "");
     return dropped[name]?.url ?? src;
+  };
+
+  const publish = async () => {
+    const target = { owner: ghOwner, repo: ghRepo, branch: ghBranch, token: ghToken };
+    const log = (line: string) => setPublishLog((prev) => [...prev, line]);
+    setPublishing(true);
+    setPublishLog([]);
+    try {
+      for (const [name, item] of Object.entries(dropped)) {
+        log(`Uploading /photos/${name} …`);
+        const base64 = bytesToBase64(await item.file.arrayBuffer());
+        await publishFile(
+          target,
+          `public/photos/${name}`,
+          base64,
+          `Add photo ${name} (editor publish)`,
+        );
+      }
+      log("Writing src/data/chapters.ts …");
+      await publishFile(
+        target,
+        "src/data/chapters.ts",
+        textToBase64(output),
+        "Update content (editor publish)",
+      );
+      log("Published. The site goes live when the host finishes redeploying (~1–2 min).");
+    } catch (error) {
+      log(`Failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setPublishing(false);
+    }
   };
 
   const textField = (
@@ -594,6 +634,54 @@ export function EditorApp() {
               </div>
             ))}
           </>
+        )}
+      </section>
+
+      <section className="panel publish">
+        <h2>Publish to GitHub</h2>
+        <p className="editor-note">
+          Commits the edited content — and any dropped photos — straight to the
+          repo from this tab; the host redeploys automatically (~1–2 min). Needs
+          a fine-grained personal access token with Contents read &amp; write on
+          this repo. The token stays in this tab's memory only.
+        </p>
+        <div className="grid">
+          <label className="field">
+            <span>GitHub token</span>
+            <input
+              type="password"
+              value={ghToken}
+              onChange={(e) => setGhToken(e.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Owner</span>
+            <input type="text" value={ghOwner} onChange={(e) => setGhOwner(e.target.value)} />
+          </label>
+          <label className="field">
+            <span>Repo</span>
+            <input type="text" value={ghRepo} onChange={(e) => setGhRepo(e.target.value)} />
+          </label>
+          <label className="field">
+            <span>Branch</span>
+            <input type="text" value={ghBranch} onChange={(e) => setGhBranch(e.target.value)} />
+          </label>
+        </div>
+        <div className="row">
+          <button
+            type="button"
+            disabled={errors.length > 0 || !ghToken.trim() || publishing}
+            onClick={() => void publish()}
+          >
+            {publishing ? "Publishing…" : "Publish"}
+          </button>
+        </div>
+        {publishLog.length > 0 && (
+          <ul className="publish-log">
+            {publishLog.map((line, i) => (
+              <li key={i}>{line}</li>
+            ))}
+          </ul>
         )}
       </section>
     </div>
