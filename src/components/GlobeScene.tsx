@@ -88,14 +88,14 @@ interface LandPolygon {
   water?: boolean;
 }
 
-/** A run of [lng, lat] points: a coastline, border, or river. */
+/** A run of [lng, lat] points: a coastline, lake shore, or border. */
 type LineRun = number[][];
 
 /** Path-layer datum: coasts and lake shores draw strongest, interior
- *  borders a step quieter, rivers in a pale accent. */
+ *  borders a step quieter. */
 interface PathDatum {
   points: LineRun;
-  kind: "coast" | "border" | "river";
+  kind: "coast" | "border";
 }
 
 const tileVertices = (tile: LandPolygon) =>
@@ -212,7 +212,6 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
     const accent = cssToken("--accent");
     const coast = withAlpha(text, 0.4);
     const border = withAlpha(text, 0.22);
-    const river = withAlpha(accent, 0.3);
     return {
       accent,
       ground: cssToken("--ground"),
@@ -221,10 +220,8 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
       // plain string as a property name — colors there must be functions.
       // Memoized once, so layers never re-digest over accessor identity.
       // Interior borders sit a step quieter than coastlines.
-      pathColorAccessor: (datum: object) => {
-        const kind = (datum as PathDatum).kind;
-        return kind === "border" ? border : kind === "river" ? river : coast;
-      },
+      pathColorAccessor: (datum: object) =>
+        (datum as PathDatum).kind === "border" ? border : coast,
       pinDim: withAlpha(accent, INACTIVE_PIN_OPACITY),
       transparent: withAlpha(cssToken("--ground"), 0),
     };
@@ -276,7 +273,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
         { features?: LandPolygon[] } | null,
         { rings?: LineRun[] } | null,
         { borders?: LineRun[] } | null,
-        { lakes?: number[][][][]; lakeRings?: LineRun[]; rivers?: LineRun[] } | null,
+        { lakes?: number[][][][]; lakeRings?: LineRun[] } | null,
       ]) => {
         if (cancelled) return;
         const tiles = (tilesGeo?.features ?? [])
@@ -298,12 +295,11 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           ...(ringsData?.rings ?? []).map((points): PathDatum => ({ points, kind: "coast" })),
           ...(bordersData?.borders ?? []).map((points): PathDatum => ({ points, kind: "border" })),
           ...(terrainData?.lakeRings ?? []).map((points): PathDatum => ({ points, kind: "coast" })),
-          ...(terrainData?.rivers ?? []).map((points): PathDatum => ({ points, kind: "river" })),
         ];
 
         // One state update per plan step. Order is the page's visual
         // priority: land, then coastlines and borders (the map reads from
-        // these), then the terrain garnish — lakes, shores, rivers.
+        // these), then the terrain garnish — lakes and their shores.
         const plan: (() => void)[] = [];
         const planPolySlices = (from: number, to: number) => {
           let budget = 0;
