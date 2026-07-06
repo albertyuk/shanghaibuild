@@ -492,11 +492,13 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
         }
         const screen = globe.getScreenCoords(pin.lat, pin.lng, 0.06);
         const rect = panel.getBoundingClientRect();
-        const ax = rect.right;
+        // Panels dock at the pane's right edge; the line leaves from
+        // their left side, toward the map.
+        const ax = rect.left;
         const ay = rect.top + rect.height / 2;
         line.setAttribute(
           "points",
-          `${ax},${ay} ${ax + 26},${ay} ${screen.x},${screen.y}`,
+          `${ax},${ay} ${ax - 26},${ay} ${screen.x},${screen.y}`,
         );
         dot.setAttribute("cx", String(screen.x));
         dot.setAttribute("cy", String(screen.y));
@@ -746,8 +748,9 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
         >
           {photoPins.map((pin, i) => (
             <g key={`${pin.lat},${pin.lng}`}>
-              <polyline pathLength={1} style={{ animationDelay: `${i * 120}ms` }} />
-              <circle r={3.5} style={{ animationDelay: `${i * 120}ms` }} />
+              {/* The line waits for its panel to finish materializing. */}
+              <polyline pathLength={1} style={{ animationDelay: `${400 + i * 140}ms` }} />
+              <circle r={3.5} style={{ animationDelay: `${640 + i * 140}ms` }} />
             </g>
           ))}
         </svg>
