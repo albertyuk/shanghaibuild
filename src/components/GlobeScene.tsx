@@ -131,9 +131,10 @@ const LINE_ALTITUDE = 0.012;
 /** three-globe's internal globe radius. */
 const GLOBE_RADIUS = 100;
 
-/** Briefing-map stipple: land brightens on a ~2° dot grid. */
-const STIPPLE_CELLS_PER_RAD = 28.65; /* 57.296 deg/rad ÷ 2 deg cells */
-const STIPPLE_BOOST = 0.6;
+/** Briefing-map stipple: a whisper of texture on a fine ~0.75° dot
+ *  grid — felt more than seen. */
+const STIPPLE_CELLS_PER_RAD = 76.4; /* 57.296 deg/rad ÷ 0.75 deg cells */
+const STIPPLE_BOOST = 0.22;
 
 /**
  * Land and coastlines float slightly above the ocean sphere, so a band of
@@ -169,7 +170,7 @@ function clipBehindHorizon<T extends { onBeforeCompile: unknown; customProgramCa
         "#include <opaque_fragment>",
         `vec3 spN = normalize(vGlobePos);
 \tvec2 spCell = fract(vec2(atan(spN.z, spN.x), asin(clamp(spN.y, -1.0, 1.0))) * ${STIPPLE_CELLS_PER_RAD.toFixed(2)}) - 0.5;
-\toutgoingLight *= 1.0 + ${STIPPLE_BOOST.toFixed(2)} * (1.0 - smoothstep(0.2, 0.3, length(spCell)));
+\toutgoingLight *= 1.0 + ${STIPPLE_BOOST.toFixed(2)} * (1.0 - smoothstep(0.12, 0.3, length(spCell)));
 \t#include <opaque_fragment>`,
       );
     }
@@ -255,7 +256,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
       pathColorAccessor: (datum: object) =>
         (datum as PathDatum).kind === "border" ? border : coast,
       // Radar rings fade as they propagate outward.
-      ringColorAccessor: () => (t: number) => withAlpha(ring, 0.5 * (1 - t)),
+      ringColorAccessor: () => (t: number) => withAlpha(ring, 0.3 * (1 - t)),
     };
   }, []);
 
@@ -725,9 +726,9 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           showGraticules={true}
           ringsData={rings}
           ringColor={palette.ringColorAccessor}
-          ringMaxRadius={9}
-          ringPropagationSpeed={1.6}
-          ringRepeatPeriod={1100}
+          ringMaxRadius={5}
+          ringPropagationSpeed={1.1}
+          ringRepeatPeriod={1600}
           ringAltitude={0.0135}
           onZoom={handleZoom}
           rendererConfig={{ antialias: true, alpha: true }}

@@ -218,27 +218,17 @@ button {
   inset: 0;
 }
 
-/* Flight-instrument readout: live camera coordinates + altitude, framed
- * as a briefing-map data callout. */
+/* Flight-instrument readout: live camera coordinates + altitude. */
 .globe-hud {
   position: absolute;
   right: clamp(16px, 2vw, 28px);
   bottom: 20px;
   z-index: 5;
-  padding: 6px 10px;
   font-family: var(--font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.06em;
-  color: var(--accent);
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  border-left: 2px solid var(--accent);
+  color: var(--muted);
   pointer-events: none;
-}
-
-/* No box until the first readout arrives. */
-.globe-hud:empty {
-  display: none;
 }
 
 .globe-placeholder {
