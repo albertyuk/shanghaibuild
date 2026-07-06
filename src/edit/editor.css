@@ -260,10 +260,11 @@ button.ghost.danger:hover:not(:disabled) {
   border-color: var(--accent);
 }
 
-/* ---------- Photo preview page ----------
- * Mirrors the site's .photo-callout styling (global.css) at its exact
- * on-site width, laid out in-flow so every chapter's panels are visible
- * at once. */
+/* ---------- Photo placement page ----------
+ * Mirrors the site's .photo-callout styling (global.css) inside a
+ * miniature of the desktop screen. Panel positions drag-edit in place;
+ * their top-left corner is stored as % of the screen — exactly the
+ * numbers the live site renders from. */
 
 .preview-page .editor-head {
   display: flex;
@@ -285,11 +286,72 @@ button.ghost.danger:hover:not(:disabled) {
   margin: 0 0 14px;
 }
 
-.preview-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  align-items: flex-start;
+/* The stage: one desktop screen, 16:9. */
+.pos-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--bg);
+  border: 1px solid var(--hairline);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+/* Where the map pane sits on the live layout (--globe-width-desktop). */
+.pos-stage-map {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 60%;
+  border-right: 1px dashed var(--hairline);
+  pointer-events: none;
+}
+
+.pos-stage-map::after {
+  content: "map pane";
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Panels scale to the same screen fraction they occupy live
+ * (230px ≈ 16% of a 1440px display), so placement reads true. */
+.pos-stage .photo-callout {
+  position: absolute;
+  width: 16%;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-drag: none;
+  touch-action: none;
+}
+
+.pos-stage .photo-callout:active {
+  cursor: grabbing;
+}
+
+.pos-stage .photo-callout img {
+  pointer-events: none;
+}
+
+/* Coordinate inputs under each stage. */
+.pos-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.row .pos-field input {
+  width: 90px;
+  flex: none;
 }
 
 .photo-callout {

@@ -60,7 +60,24 @@ export function PhotoCallouts({ activeId, reducedMotion }: Props) {
         const photos = (pin.photos ?? []).slice(0, 2);
         const captions = photos.map((photo) => photo.caption).filter(Boolean);
         return (
-          <figure className="photo-callout" key={`${pin.lat},${pin.lng}`}>
+          <figure
+            className="photo-callout"
+            key={`${pin.lat},${pin.lng}`}
+            // A placed panel leaves the default stack for its authored
+            // spot: top-left corner at (x% across, y% down) the screen,
+            // clamped so it can never hang off the viewport. It stops
+            // sizing from the stack container, so width comes along.
+            style={
+              pin.panel
+                ? {
+                    position: "fixed",
+                    left: `clamp(8px, ${pin.panel.x}vw, calc(100vw - min(230px, 22vw) - 8px))`,
+                    top: `clamp(8px, ${pin.panel.y}vh, calc(100vh - 160px))`,
+                    width: "min(230px, 22vw)",
+                  }
+                : undefined
+            }
+          >
             <figcaption className="photo-callout-title">{pin.city}</figcaption>
             <div className="photo-callout-strip">
               {photos.map((photo, i) => (

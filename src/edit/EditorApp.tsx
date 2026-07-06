@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { chapters as sourceChapters, site as sourceSite } from "../data/chapters";
 import { formatCoordinate } from "../lib/coords";
 import type { EditableChapter, SiteContent } from "./types";
@@ -64,6 +64,12 @@ function validate(chapters: EditableChapter[], site: SiteContent): string[] {
           );
         }
       });
+      if (pin.panel) {
+        const { x, y } = pin.panel;
+        if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 100 || y < 0 || y > 100) {
+          errors.push(`${label}, pin ${p + 1}: panel position must be within 0–100%.`);
+        }
+      }
     });
     for (const [from, to] of chapter.arcs ?? []) {
       if (!chapter.pins[from] || !chapter.pins[to]) {
@@ -86,6 +92,9 @@ export function EditorApp() {
   const [wrongPass, setWrongPass] = useState(false);
   const [dropped, setDropped] = useState<Record<string, DroppedFile>>({});
   const [dragOver, setDragOver] = useState<string | null>(null);
+  // Photo srcs whose image actually failed to load on the placement
+  // page — the honest signal that a file isn't on the site yet.
+  const [broken, setBroken] = useState<Record<string, boolean>>({});
   // Publish target + token. The token lives in this state only — never
   // stored, gone when the tab closes.
   const [ghToken, setGhToken] = useState("");
@@ -117,6 +126,83 @@ export function EditorApp() {
           : c,
       ),
     );
+
+  // Placement-stage drag: the panel captures the pointer; each move
+  // writes its top-left corner into the draft as % of the stage — the
+  // same percentages the live site reads as % of the screen. The stage
+  // rect is cached at grab time (it never moves mid-drag).
+  const dragRef = useRef<{
+    chapterIndex: number;
+    pinIndex: number;
+    dx: number;
+    dy: number;
+    stage: DOMRect;
+  } | null>(null);
+
+  const startPanelDrag = (
+    e: ReactPointerEvent<HTMLElement>,
+    chapterIndex: number,
+    pinIndex: number,
+  ) => {
+    const stage = e.currentTarget.closest(".pos-stage");
+    if (!stage) return;
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    dragRef.current = {
+      chapterIndex,
+      pinIndex,
+      dx: e.clientX - rect.left,
+      dy: e.clientY - rect.top,
+      stage: stage.getBoundingClientRect(),
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const movePanelDrag = (e: ReactPointerEvent<HTMLElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const panel = e.currentTarget.getBoundingClientRect();
+    const maxX = Math.max(0, 100 - (panel.width / drag.stage.width) * 100);
+    const maxY = Math.max(0, 100 - (panel.height / drag.stage.height) * 100);
+    const x = ((e.clientX - drag.dx - drag.stage.left) / drag.stage.width) * 100;
+    const y = ((e.clientY - drag.dy - drag.stage.top) / drag.stage.height) * 100;
+    patchPin(drag.chapterIndex, drag.pinIndex, {
+      panel: {
+        x: Math.round(Math.min(Math.max(x, 0), maxX) * 10) / 10,
+        y: Math.round(Math.min(Math.max(y, 0), maxY) * 10) / 10,
+      },
+    });
+  };
+
+  const endPanelDrag = () => {
+    dragRef.current = null;
+  };
+
+  /** Typed coordinate for one axis; the other axis defaults to center
+   *  when the panel was previously unplaced. */
+  const setPanelAxis = (
+    chapterIndex: number,
+    pinIndex: number,
+    axis: "x" | "y",
+    raw: string,
+  ) => {
+    if (raw.trim() === "") return;
+    const value = Math.min(100, Math.max(0, Number(raw) || 0));
+    setChapters((prev) =>
+      prev.map((c, i) =>
+        i === chapterIndex
+          ? {
+              ...c,
+              pins: c.pins.map((pin, j) =>
+                j === pinIndex
+                  ? { ...pin, panel: { x: 50, y: 50, ...pin.panel, [axis]: value } }
+                  : pin,
+              ),
+            }
+          : c,
+      ),
+    );
+  };
 
   // Photo slots are a fixed pair per pin; empty srcs are dropped at export.
   const setPhoto = (
@@ -270,22 +356,25 @@ export function EditorApp() {
 
   if (previewing) {
     const withAnyPhotos = chapters
-      .map((chapter, i) => ({
+      .map((chapter, chapterIndex) => ({
         chapter,
-        num: String(i + 1).padStart(2, "0"),
-        pins: chapter.pins.filter((pin) =>
-          (pin.photos ?? []).some((photo) => photo.src.trim()),
-        ),
+        chapterIndex,
+        num: String(chapterIndex + 1).padStart(2, "0"),
+        pins: chapter.pins
+          .map((pin, pinIndex) => ({ pin, pinIndex }))
+          .filter(({ pin }) => (pin.photos ?? []).some((photo) => photo.src.trim())),
       }))
       .filter((entry) => entry.pins.length > 0);
     return (
       <div className="editor preview-page">
         <header className="editor-head">
-          <h1>Photo preview</h1>
+          <h1>Photo placement</h1>
           <p className="editor-note">
-            Each panel below appears pinned to the map pane's top-left while its
-            chapter is active — exactly this size, frame, and photo treatment.
-            Nothing here is deployed yet.
+            Each frame is the desktop screen while that chapter is active; the
+            dashed line is the map pane's edge. Drag a panel to set exactly
+            where it appears on screen — stored as % of the screen from the
+            top-left — or type the numbers. Panels without a position use the
+            default bottom-right stack. Nothing here is deployed yet.
           </p>
           <button type="button" onClick={() => setPreviewing(false)}>
             Back to editor
@@ -294,51 +383,123 @@ export function EditorApp() {
         {withAnyPhotos.length === 0 && (
           <p className="editor-note">No photo slots filled yet.</p>
         )}
-        {withAnyPhotos.map(({ chapter, num, pins }) => (
-          <section className="preview-chapter" key={chapter.id}>
-            <h2>
-              {num} · {chapter.title || "(untitled)"}
-            </h2>
-            <div className="preview-row">
-              {pins.map((pin, p) => {
-                const photos = (pin.photos ?? [])
-                  .filter((photo) => photo.src.trim())
-                  .slice(0, 2);
-                const captions = photos.map((photo) => photo.caption).filter(Boolean);
-                const pendingUpload = photos.some(
-                  (photo) =>
-                    photo.src.startsWith("/photos/") &&
-                    !dropped[photo.src.replace(/^\/photos\//, "")],
-                );
-                return (
-                  <figure className="photo-callout" key={p}>
-                    <figcaption className="photo-callout-title">{pin.city}</figcaption>
-                    <div className="photo-callout-strip">
-                      {photos.map((photo, j) => (
-                        <img
-                          key={j}
-                          src={previewFor(photo.src) ?? photo.src}
-                          alt={photo.caption ?? pin.city}
-                        />
-                      ))}
-                    </div>
-                    <p className="photo-callout-data">
-                      {formatCoordinate(pin.lat, pin.lng)} · {pin.country.toUpperCase()}
-                    </p>
-                    {captions.length > 0 && (
-                      <p className="photo-callout-caption">{captions.join(" · ")}</p>
-                    )}
-                    {pendingUpload && (
-                      <p className="preview-pending">
-                        file not on the site yet — publish or commit it
+        {withAnyPhotos.map(({ chapter, chapterIndex, num, pins }) => {
+          const unpositioned = pins
+            .filter(({ pin }) => !pin.panel)
+            .map(({ pinIndex }) => pinIndex);
+          return (
+            <section className="preview-chapter" key={chapter.id}>
+              <h2>
+                {num} · {chapter.title || "(untitled)"}
+              </h2>
+              <div className="pos-stage">
+                <div className="pos-stage-map" aria-hidden="true" />
+                {pins.map(({ pin, pinIndex }) => {
+                  const photos = (pin.photos ?? [])
+                    .filter((photo) => photo.src.trim())
+                    .slice(0, 2);
+                  const captions = photos.map((photo) => photo.caption).filter(Boolean);
+                  const pendingUpload = photos.some((photo) => broken[photo.src]);
+                  // Unplaced panels sit in a sketch of the live default
+                  // stack (bottom-right, story order top to bottom). All
+                  // panels stay direct children of the stage, so a drag
+                  // never reparents the node it is capturing.
+                  const stackSlot = unpositioned.indexOf(pinIndex);
+                  return (
+                    <figure
+                      className="photo-callout"
+                      key={pinIndex}
+                      style={
+                        pin.panel
+                          ? { left: `${pin.panel.x}%`, top: `${pin.panel.y}%` }
+                          : {
+                              right: "2%",
+                              bottom: `${5 + (unpositioned.length - 1 - stackSlot) * 38}%`,
+                            }
+                      }
+                      onPointerDown={(e) => startPanelDrag(e, chapterIndex, pinIndex)}
+                      onPointerMove={movePanelDrag}
+                      onPointerUp={endPanelDrag}
+                      onPointerCancel={endPanelDrag}
+                    >
+                      <figcaption className="photo-callout-title">{pin.city}</figcaption>
+                      <div className="photo-callout-strip">
+                        {photos.map((photo, j) => (
+                          <img
+                            key={j}
+                            src={previewFor(photo.src) ?? photo.src}
+                            alt={photo.caption ?? pin.city}
+                            draggable={false}
+                            onError={() =>
+                              setBroken((prev) =>
+                                prev[photo.src] ? prev : { ...prev, [photo.src]: true },
+                              )
+                            }
+                            onLoad={() =>
+                              setBroken((prev) =>
+                                prev[photo.src] ? { ...prev, [photo.src]: false } : prev,
+                              )
+                            }
+                          />
+                        ))}
+                      </div>
+                      <p className="photo-callout-data">
+                        {formatCoordinate(pin.lat, pin.lng)} · {pin.country.toUpperCase()}
                       </p>
-                    )}
-                  </figure>
-                );
-              })}
-            </div>
-          </section>
-        ))}
+                      {captions.length > 0 && (
+                        <p className="photo-callout-caption">{captions.join(" · ")}</p>
+                      )}
+                      {pendingUpload && (
+                        <p className="preview-pending">
+                          image not loading — publish or commit the file
+                        </p>
+                      )}
+                    </figure>
+                  );
+                })}
+              </div>
+              {pins.map(({ pin, pinIndex }) => (
+                <div className="row" key={pinIndex}>
+                  <span className="slot-label">{pin.city || `pin ${pinIndex + 1}`}</span>
+                  <label className="pos-field">
+                    x %
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      max="100"
+                      value={pin.panel ? pin.panel.x : ""}
+                      placeholder="auto"
+                      aria-label={`${pin.city || `Pin ${pinIndex + 1}`} panel x`}
+                      onChange={(e) => setPanelAxis(chapterIndex, pinIndex, "x", e.target.value)}
+                    />
+                  </label>
+                  <label className="pos-field">
+                    y %
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      max="100"
+                      value={pin.panel ? pin.panel.y : ""}
+                      placeholder="auto"
+                      aria-label={`${pin.city || `Pin ${pinIndex + 1}`} panel y`}
+                      onChange={(e) => setPanelAxis(chapterIndex, pinIndex, "y", e.target.value)}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="ghost"
+                    disabled={!pin.panel}
+                    onClick={() => patchPin(chapterIndex, pinIndex, { panel: undefined })}
+                  >
+                    default stack
+                  </button>
+                </div>
+              ))}
+            </section>
+          );
+        })}
       </div>
     );
   }
@@ -691,7 +852,7 @@ export function EditorApp() {
         )}
         <div className="row">
           <button type="button" className="ghost" onClick={() => setPreviewing(true)}>
-            Preview photos
+            Preview &amp; place photos
           </button>
           <button type="button" disabled={errors.length > 0} onClick={download}>
             Download chapters.ts

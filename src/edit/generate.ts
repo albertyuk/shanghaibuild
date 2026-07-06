@@ -14,6 +14,7 @@ type PinShape = {
   lat: number;
   lng: number;
   photos?: { src: string; caption?: string }[];
+  panel?: { x: number; y: number };
 };
 
 function photoList(photos: PinShape["photos"]): string {
@@ -30,7 +31,12 @@ function photoList(photos: PinShape["photos"]): string {
 }
 
 function pinLine(pin: PinShape) {
-  return `{ city: ${s(pin.city)}, country: ${s(pin.country)}, lat: ${pin.lat}, lng: ${pin.lng}${photoList(pin.photos)} }`;
+  const photos = photoList(pin.photos);
+  // A panel position is only meaningful alongside photos — dropping it
+  // otherwise keeps the exported file free of dead fields.
+  const panel =
+    photos && pin.panel ? `, panel: { x: ${pin.panel.x}, y: ${pin.panel.y} }` : "";
+  return `{ city: ${s(pin.city)}, country: ${s(pin.country)}, lat: ${pin.lat}, lng: ${pin.lng}${photos}${panel} }`;
 }
 
 function chapterBlock(chapter: EditableChapter): string {
