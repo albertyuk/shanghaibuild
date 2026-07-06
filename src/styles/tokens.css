@@ -9,23 +9,25 @@
  * blue + white + electric cyan only.
  */
 :root {
-  /* Palette */
-  --bg: #050b18; /* page ground: abyss navy */
-  --surface: #0c1830; /* lifted panels: mobile nav bar, skip link */
-  --ink: #eaf2ff; /* headings: blue-tinted white */
-  --ink-body: rgba(234, 242, 255, 0.9); /* body copy: ink at 90% */
-  --muted: #7c8db0; /* secondary text */
-  --accent: #2ea8ff; /* electric blue — pins, arcs, active nav, links */
-  --accent-hot: #9bd9ff; /* hover flash, focus rings, active marker */
-  --accent-ink: #041020; /* text set on accent fills */
-  --hairline: rgba(160, 190, 255, 0.16); /* rules */
-  --halftone-dot: rgba(46, 168, 255, 0.03); /* chapter-list strip texture */
+  /* Palette — the strategic chart on paper: white ground, navy ink, one
+   * electric blue running the map, the grid, and every interactive state. */
+  --bg: #ffffff; /* page ground: white */
+  --surface: #f2f6fc; /* lifted panels: mobile nav bar, skip link */
+  --ink: #0b1b33; /* headings: chart-ink navy */
+  --ink-body: rgba(11, 27, 51, 0.88); /* body copy: ink at ~90% */
+  --muted: #5a6b8c; /* secondary text */
+  --accent: #1553d6; /* electric blue — pins, arcs, active nav, links */
+  --accent-hot: #0b3eb8; /* hover, focus rings */
+  --accent-ink: #ffffff; /* text set on accent fills */
+  --hairline: rgba(11, 27, 51, 0.14); /* rules */
+  --halftone-dot: rgba(21, 83, 214, 0.05); /* chapter-list strip texture */
 
   /* Globe layers (read at runtime by the Three.js scene). Briefing-map
-   * look: land barely lifts off the ocean — the glowing outlines carry
-   * the map. */
-  --globe-ocean: #091426; /* sphere base — a step above --bg so it reads */
-  --globe-land: #0d1a33; /* landmass fill, a whisper above the ocean */
+   * look on paper: the glowing halo-blue outlines carry the map; land
+   * barely lifts off the pale ocean. */
+  --globe-ocean: #edf3fc; /* sphere base — a step below --bg so it reads */
+  --globe-land: #fbfdff; /* landmass fill, a whisper above the ocean */
+  --globe-coast: #4d9bff; /* the luminous coastline halo stroke */
 
   /* Type — the original two families */
   --font-display: "EB Garamond", Georgia, "Times New Roman", serif;

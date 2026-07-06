@@ -132,9 +132,10 @@ const LINE_ALTITUDE = 0.012;
 const GLOBE_RADIUS = 100;
 
 /** Briefing-map stipple: a whisper of texture on a fine ~0.75° dot
- *  grid — felt more than seen. */
+ *  grid — felt more than seen. On the paper theme the dots print DARKER
+ *  than the land, drifting toward blue (r dims most, b least). */
 const STIPPLE_CELLS_PER_RAD = 76.4; /* 57.296 deg/rad ÷ 0.75 deg cells */
-const STIPPLE_BOOST = 0.22;
+const STIPPLE_TINT = "vec3(0.10, 0.07, 0.015)";
 
 /**
  * Land and coastlines float slightly above the ocean sphere, so a band of
@@ -170,7 +171,7 @@ function clipBehindHorizon<T extends { onBeforeCompile: unknown; customProgramCa
         "#include <opaque_fragment>",
         `vec3 spN = normalize(vGlobePos);
 \tvec2 spCell = fract(vec2(atan(spN.z, spN.x), asin(clamp(spN.y, -1.0, 1.0))) * ${STIPPLE_CELLS_PER_RAD.toFixed(2)}) - 0.5;
-\toutgoingLight *= 1.0 + ${STIPPLE_BOOST.toFixed(2)} * (1.0 - smoothstep(0.12, 0.3, length(spCell)));
+\toutgoingLight *= vec3(1.0) - ${STIPPLE_TINT} * (1.0 - smoothstep(0.12, 0.3, length(spCell)));
 \t#include <opaque_fragment>`,
       );
     }
@@ -237,26 +238,23 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
 
   const palette = useMemo(() => {
     const accent = cssToken("--accent");
-    const accentHot = cssToken("--accent-hot");
-    // Briefing-map wireframe: coastlines burn bright over near-black
-    // land; interior borders stay quiet admin lines.
-    const coast = withAlpha(accentHot, 0.8);
-    const border = withAlpha(accent, 0.35);
-    const ring = accent;
+    // Briefing-chart wireframe on paper: coastlines carry a luminous
+    // halo-blue stroke; interior borders stay quiet ink admin lines.
+    const coast = withAlpha(cssToken("--globe-coast"), 0.75);
+    const border = withAlpha(cssToken("--ink"), 0.28);
     return {
       accent,
-      accentHot,
+      pinDim: withAlpha(accent, 0.4),
       bg: cssToken("--bg"),
       ocean: cssToken("--globe-ocean"),
       land: cssToken("--globe-land"),
-      grid: withAlpha(accent, 0.15),
       // Per-datum accessor props run through accessor-fn, which treats a
       // plain string as a property name — colors there must be functions.
       // Memoized once, so layers never re-digest over accessor identity.
       pathColorAccessor: (datum: object) =>
         (datum as PathDatum).kind === "border" ? border : coast,
       // Radar rings fade as they propagate outward.
-      ringColorAccessor: () => (t: number) => withAlpha(ring, 0.3 * (1 - t)),
+      ringColorAccessor: () => (t: number) => withAlpha(accent, 0.35 * (1 - t)),
     };
   }, []);
 
@@ -710,7 +708,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           pointLat={(d) => (d as PointDatum).lat}
           pointLng={(d) => (d as PointDatum).lng}
           pointColor={(d) =>
-            (d as PointDatum).chapterId === activeId ? palette.accentHot : palette.accent
+            (d as PointDatum).chapterId === activeId ? palette.accent : palette.pinDim
           }
           pointRadius={(d) => ((d as PointDatum).chapterId === activeId ? 0.6 : 0.32)}
           pointAltitude={(d) => ((d as PointDatum).chapterId === activeId ? 0.02 : 0.008)}

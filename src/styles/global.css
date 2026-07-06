@@ -15,7 +15,7 @@
 
 html {
   background: var(--bg);
-  color-scheme: dark;
+  color-scheme: light;
   scrollbar-width: thin;
   scrollbar-color: var(--accent) var(--bg);
 }
