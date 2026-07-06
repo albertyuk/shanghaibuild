@@ -480,11 +480,15 @@ button {
 }
 
 /* The waypoint reticle: diamond outline, outer ticks, center dot. It
- * arrives with a lock-on — scaling down onto its target as it fades in. */
+ * arrives with a lock-on — the scale sweep stays smooth while the
+ * opacity stutters in square steps, a lock confirming digitally. The
+ * later animation in the list owns opacity. */
 .leader-lines .waypoint-mark {
   transform-box: fill-box;
   transform-origin: center;
-  animation: waypoint-lock 320ms var(--ease-slip) both;
+  animation:
+    waypoint-lock 320ms var(--ease-slip) both,
+    waypoint-stutter 480ms step-end both;
 }
 
 .leader-lines .wp-diamond {
@@ -512,6 +516,28 @@ button {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes waypoint-stutter {
+  0% {
+    opacity: 0;
+  }
+  28% {
+    opacity: 1;
+  }
+  40% {
+    opacity: 0.3;
+  }
+  54% {
+    opacity: 1;
+  }
+  66% {
+    opacity: 0.5;
+  }
+  78%,
+  100% {
+    opacity: 1;
   }
 }
 
@@ -939,7 +965,12 @@ button {
   white-space: nowrap;
 }
 
-/* ---------- Entry fade (the only text motion) ---------- */
+/* ---------- Entry motion ---------- */
+
+/* Sections still ride one soft fade-up; the briefing chrome inside them
+ * (numerals, coordinates, titles) acquires with a short electronic
+ * flicker on top — see "Signal acquisition" below. Body copy never
+ * flickers. */
 
 [data-fade] {
   opacity: 0;
@@ -954,6 +985,143 @@ button {
   transform: none;
 }
 
+/* ---------- Signal acquisition (electronic flicker) ---------- */
+
+/* Hard-stepped opacity blinks: the element cuts in, drops out twice,
+ * then holds — a readout locking on, not a fade. step-end keeps every
+ * blink square. Small text areas only, a few blinks, always once. */
+@keyframes text-acquire {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  20% {
+    opacity: 0.15;
+  }
+  32% {
+    opacity: 1;
+  }
+  44% {
+    opacity: 0.45;
+  }
+  56%,
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Chapter chrome flickers as its section scrolls into view, staggered
+ * like lines lighting up on a console. Blurbs keep the plain fade. */
+.chapter.in-view .chapter-num {
+  animation: text-acquire 420ms step-end both;
+}
+
+.chapter.in-view .eyebrow {
+  animation: text-acquire 460ms step-end 70ms both;
+}
+
+.chapter.in-view h2 {
+  animation: text-acquire 460ms step-end 140ms both;
+}
+
+.footer.in-view .footer-kicker {
+  animation: text-acquire 420ms step-end both;
+}
+
+/* The hero acquires the moment the boot veil lifts (App stamps .booted
+ * on the layout), so the reveal reads as systems coming online. */
+.booted .hero-kicker {
+  animation: text-acquire 440ms step-end both;
+}
+
+.booted .hero h1 {
+  animation: text-acquire 480ms step-end 80ms both;
+}
+
+.booted .scroll-cue {
+  animation: text-acquire 440ms step-end 220ms both;
+}
+
+/* Flight readout flickers in with the reveal too (it fills behind the
+ * veil, so key the animation to .booted, not to :empty flipping). */
+.booted .globe-hud:not(:empty) {
+  animation: text-acquire 420ms step-end 300ms both;
+}
+
+/* Sat-photo feed syncing: overexposed, a dropout, then settled. The
+ * base recon filter rides along in every frame. */
+@keyframes photo-sync {
+  0% {
+    opacity: 0;
+    filter: saturate(0.25) contrast(1.05) brightness(2.1);
+  }
+  16% {
+    opacity: 1;
+    filter: saturate(0.25) contrast(1.05) brightness(1.7);
+  }
+  28% {
+    opacity: 0.35;
+    filter: saturate(0.25) contrast(1.05) brightness(2);
+  }
+  42% {
+    opacity: 1;
+    filter: saturate(0.25) contrast(1.05) brightness(0.92);
+  }
+  100% {
+    opacity: 1;
+    filter: saturate(0.25) contrast(1.05) brightness(1);
+  }
+}
+
+.photo-callout img {
+  animation: photo-sync 520ms linear 140ms both;
+}
+
+.photo-callout-title {
+  animation: text-acquire 420ms step-end 220ms both;
+}
+
+/* The active chapter chip re-flashes on every acquisition. */
+@keyframes chip-flash {
+  0% {
+    opacity: 0.35;
+  }
+  30% {
+    opacity: 1;
+  }
+  45% {
+    opacity: 0.55;
+  }
+  60%,
+  100% {
+    opacity: 1;
+  }
+}
+
+.index-item.is-active {
+  animation: chip-flash 300ms step-end;
+}
+
+/* Terminal cursor on the boot label. */
+.boot-label::after {
+  content: "_";
+  margin-left: 3px;
+  color: var(--accent);
+  animation: cursor-blink 900ms step-end infinite;
+}
+
+@keyframes cursor-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-fade] {
     opacity: 1;
@@ -961,14 +1129,18 @@ button {
     transition: none;
   }
 
-  /* Every hover/entry transition and reveal animation collapses to
-   * instant. */
+  /* Transitions collapse to instant; animations are removed outright.
+   * Removal (not 0.01ms duration) matters twice over: infinite loops
+   * would strobe per-frame at collapsed durations, and 'both'-filled
+   * reveals can stick at their 0% frame (invisible) when a static page
+   * produces no frames to advance them. Every animation on this site is
+   * a decorative reveal whose natural, animation-free state is fully
+   * visible — so none lose meaning. */
   *,
   *::before,
   *::after {
     transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-    animation-delay: 0ms !important;
+    animation: none !important;
   }
 }
 

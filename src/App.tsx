@@ -105,9 +105,11 @@ export default function App() {
     return () => observer.disconnect();
   }, [isDesktop]);
 
-  // The one text animation: a single soft fade-up on section entry.
-  // Reduced motion is handled in CSS (sections render in place, no
-  // transition), so this observer stays inert there.
+  // Section entry: a soft fade-up on the section, plus the electronic
+  // acquire-flicker CSS keys off the same .in-view class for the
+  // briefing chrome inside it. Reduced motion is handled in CSS
+  // (sections render in place, flickers collapse), so this observer
+  // stays inert there.
   useEffect(() => {
     const faded = document.querySelectorAll<HTMLElement>("[data-fade]");
     const observer = new IntersectionObserver(
@@ -143,8 +145,18 @@ export default function App() {
     }, DIVE_MS);
   };
 
+  // .booted lands when the veil lifts: the hero and HUD play their
+  // signal-acquire flicker at the moment of reveal, not behind it.
+  const layoutClass = [
+    "layout",
+    showGlobe ? "" : "no-globe",
+    booted ? "booted" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className={showGlobe ? "layout" : "layout no-globe"}>
+    <div className={layoutClass}>
       <a className="skip-link" href="#chapters">
         {site.skipLinkLabel}
       </a>
