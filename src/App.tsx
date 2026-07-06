@@ -39,6 +39,10 @@ export default function App() {
     },
     [],
   );
+  // "Next location": each press hops the globe camera to the active
+  // chapter's next pin. Only rendered while a multi-pin chapter is up.
+  const [cycleNonce, setCycleNonce] = useState(0);
+  const activeChapter = chapters.find((ch) => ch.id === activeId);
   // Boot veil: covers the page while the globe streams its map in, then
   // fades away. Dismissed by the globe's loaded callback, with a hard
   // failsafe so a stalled fetch can never trap the visitor behind it.
@@ -204,6 +208,16 @@ export default function App() {
       {showGlobe && isDesktop && (
         <PhotoCallouts stop={stop} reducedMotion={reducedMotion} />
       )}
+      {showGlobe && (activeChapter?.pins.length ?? 0) > 1 && (
+        <button
+          type="button"
+          className="earth-toggle cycle-toggle"
+          onClick={() => setCycleNonce((n) => n + 1)}
+          disabled={diving}
+        >
+          <span className="earth-toggle-label">{site.cycleLabel}</span>
+        </button>
+      )}
       {showGlobe && (
         <div className="globe-pane" aria-hidden="true">
           <GlobeErrorBoundary fallback={<GlobePlaceholder />}>
@@ -216,6 +230,7 @@ export default function App() {
                 onLoaded={bootDone}
                 onProgress={bootProgress}
                 onWaypoint={handleWaypoint}
+                cycleNonce={cycleNonce}
               />
             </Suspense>
           </GlobeErrorBoundary>

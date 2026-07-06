@@ -18,10 +18,14 @@ interface Props {
    *  once per chunk — the boot veil's progress bar reads this. */
   onProgress?: (done: number, total: number) => void;
   /** Fired when the tour's current stop changes: the chapter shown and
-   *  the index of the pin the camera has most recently locked onto
-   *  (-1 before the first lock). The photo callouts follow this, so
-   *  each location's panels appear as the camera arrives there. */
+   *  the index of the pin the camera is currently holding on (-1 while
+   *  in transit, before the first lock, or after the closing overview).
+   *  The photo callouts follow this, so each location's panels appear
+   *  as the camera arrives and clear as it moves away. */
   onWaypoint?: (chapterId: string | null, pinIndex: number) => void;
+  /** Bumped by the pane's "next location" button: each change hops the
+   *  camera to the active chapter's next pin, cancelling the auto tour. */
+  cycleNonce?: number;
 }
 
 interface PointDatum {
@@ -84,6 +88,10 @@ const TOUR_OVERVIEW_MS = 1800;
 /** Waypoints confirm on final approach: the lock-on flicker fires this
  *  far before the camera actually arrives at the pin. */
 const LOCK_LEAD_MS = 700;
+/** How long a stop's photo panels linger once the camera pulls away —
+ *  a beat into the outbound leg (or the closing overview), not the
+ *  whole flight. */
+const STOP_LINGER_MS = 350;
 /** The "down to earth" plunge — deep enough that the city-detail layer
  *  (urban wash, rivers) fills the frame before the words take over. */
 const DIVE_MS = 900;
@@ -342,6 +350,7 @@ export default function GlobeScene({
   onLoaded,
   onProgress,
   onWaypoint,
+  cycleNonce,
 }: Props) {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -687,6 +696,30 @@ export default function GlobeScene({
   const [lockedCount, setLockedCount] = useState(0);
   const lockedFor = useRef<string | null>(activeId);
 
+  // Which pin the camera is holding on right now: -1 in transit. Unlike
+  // lockedCount (which only grows — reticles stay confirmed), the stop
+  // clears a beat after each departure, so photo panels track presence,
+  // not history. lastStopRef remembers the latest stop for the cycle
+  // button even while the live index reads -1 mid-flight.
+  const [stopIndex, setStopIndex] = useState(-1);
+  const lastStopRef = useRef(-1);
+
+  // Manual location cycling: the pane button bumps cycleNonce; each bump
+  // targets the pin after the last one held and hands it to the flight
+  // effect, which cancels the auto tour and flies there directly.
+  const [manual, setManual] = useState<{ index: number; seq: number } | null>(null);
+  const cycleSeen = useRef(cycleNonce ?? 0);
+  useEffect(() => {
+    const seq = cycleNonce ?? 0;
+    if (seq === cycleSeen.current) return;
+    cycleSeen.current = seq;
+    const chapter = chapters.find((ch) => ch.id === activeId);
+    if (!chapter || chapter.pins.length < 2) return;
+    const next = (lastStopRef.current + 1) % chapter.pins.length;
+    lastStopRef.current = next;
+    setManual({ index: next, seq });
+  }, [cycleNonce, activeId]);
+
   // Chapter switches never yank the overlay markers away mid-frame: the
   // outgoing set lingers for a short leaving beat (CSS fades it), then
   // the new chapter's markers key in and play their lock-on entrance.
@@ -719,19 +752,18 @@ export default function GlobeScene({
   const onWaypointRef = useRef(onWaypoint);
   onWaypointRef.current = onWaypoint;
   useEffect(() => {
-    onWaypointRef.current?.(markerId, lockedCount - 1);
-  }, [markerId, lockedCount]);
+    onWaypointRef.current?.(markerId, stopIndex);
+  }, [markerId, stopIndex]);
 
-  // The pin the tour is currently at: photo panels and their leader
+  // The pin the camera is holding on: photo panels and their leader
   // lines exist only for this stop, so each location's photos appear as
-  // the camera locks onto it — not the whole chapter's at once. Desktop
+  // the camera locks onto it and clear once it pulls away. Desktop
   // only: the panels those lines point at never render on mobile.
   const stopPin = useMemo<Pin | null>(() => {
-    if (!isDesktop || lockedCount < 1) return null;
+    if (!isDesktop || stopIndex < 0) return null;
     const chapter = chapters.find((ch) => ch.id === markerId);
-    if (!chapter) return null;
-    return chapter.pins[Math.min(lockedCount - 1, chapter.pins.length - 1)];
-  }, [isDesktop, lockedCount, markerId]);
+    return chapter?.pins[stopIndex] ?? null;
+  }, [isDesktop, stopIndex, markerId]);
   // One leader line per panel; PhotoCallouts renders one panel per photo.
   const stopPanelCount = stopPin
     ? Math.min((stopPin.photos ?? []).filter((photo) => photo.src).length, 2)
@@ -946,11 +978,19 @@ export default function GlobeScene({
   // cancels the remaining stops mid-flight.
   useEffect(() => {
     if (!ready || diving) return;
-    // New chapter: every waypoint back to unconfirmed. (Keyed by id so
-    // re-runs for other deps don't reset locks mid-view.)
+    // New chapter: every waypoint back to unconfirmed, no stop held, and
+    // any manual cycling from the previous chapter forgotten. (Keyed by
+    // id so re-runs for other deps don't reset locks mid-view.)
+    let cycled = manual;
     if (lockedFor.current !== activeId) {
       lockedFor.current = activeId;
       setLockedCount(0);
+      setStopIndex(-1);
+      lastStopRef.current = -1;
+      if (cycled) {
+        setManual(null);
+        cycled = null;
+      }
     }
     const timers: number[] = [];
     let frame = 0;
@@ -1026,9 +1066,41 @@ export default function GlobeScene({
           return;
         }
         if (reducedMotion) {
+          if (cycled && chapter.pins[cycled.index]) {
+            // Manual hop, instantly: hold on the requested pin.
+            const manualIndex = cycled.index;
+            const pin = chapter.pins[manualIndex];
+            globe.pointOfView({ lat: pin.lat, lng: pin.lng, altitude: chapter.altitude }, 0);
+            setLockedCount((count) => Math.max(count, manualIndex + 1));
+            setStopIndex(manualIndex);
+            return;
+          }
           globe.pointOfView(chapterOverview(chapter), 0);
-          // No tour, no flicker — every waypoint reads as confirmed.
+          // No tour, no flicker — every waypoint reads as confirmed. The
+          // overview shows everything, so single-pin chapters hold their
+          // one stop and multi-pin chapters hold none.
           setLockedCount(chapter.pins.length);
+          setStopIndex(chapter.pins.length === 1 ? 0 : -1);
+          if (chapter.pins.length === 1) lastStopRef.current = 0;
+          return;
+        }
+        if (cycled && chapter.pins[cycled.index]) {
+          // Manual hop: no tour — clear the held stop as the camera
+          // pulls away, fly straight there, lock on final approach.
+          const manualStop = cycled;
+          const pin = chapter.pins[manualStop.index];
+          timers.push(window.setTimeout(() => setStopIndex(-1), STOP_LINGER_MS));
+          const ref = (globe.pointOfView() as { lng: number }).lng;
+          globe.pointOfView(
+            { lat: pin.lat, lng: nearestLng(pin.lng, ref), altitude: chapter.altitude },
+            FLIGHT_MS,
+          );
+          timers.push(
+            window.setTimeout(() => {
+              setLockedCount((count) => Math.max(count, manualStop.index + 1));
+              setStopIndex(manualStop.index);
+            }, Math.max(0, FLIGHT_MS - LOCK_LEAD_MS)),
+          );
           return;
         }
         // The approach flight has no line to follow — a plain tween, on
@@ -1042,16 +1114,28 @@ export default function GlobeScene({
         // tourFrom(i) runs the moment the camera is AT pin i. Locks fire
         // earlier — on final approach — so the max here is a backstop in
         // case a lead timer was skipped.
+        // A stop is held from final approach until a beat after the
+        // camera pulls away again — arriving photos sync in, departing
+        // ones clear mid-flight instead of riding to the next pin.
+        const holdStop = (i: number) => {
+          lastStopRef.current = i;
+          setLockedCount((count) => Math.max(count, i + 1));
+          setStopIndex(i);
+        };
+        const releaseStop = () =>
+          timers.push(window.setTimeout(() => setStopIndex(-1), STOP_LINGER_MS));
         const tourFrom = (i: number) => {
           setLockedCount((count) => Math.max(count, i + 1));
           if (i + 1 >= chapter.pins.length) {
             // The finale: after the last stop, pull back just far enough
             // that the whole journey — every pin and arc — is in frame.
+            // Recentering ends the visit: every panel clears.
             if (chapter.pins.length > 1) {
               timers.push(
                 window.setTimeout(() => {
                   const g = globeRef.current;
                   if (!g) return;
+                  releaseStop();
                   const overview = chapterOverview(chapter);
                   const ref = (g.pointOfView() as { lng: number }).lng;
                   g.pointOfView(
@@ -1064,26 +1148,22 @@ export default function GlobeScene({
             return;
           }
           timers.push(
-            window.setTimeout(
-              () =>
-                flyLeg(
-                  chapter.pins[i],
-                  chapter.pins[i + 1],
-                  chapter.altitude,
-                  () => setLockedCount((count) => Math.max(count, i + 2)),
-                  () => tourFrom(i + 1),
-                ),
-              TOUR_DWELL_MS,
-            ),
+            window.setTimeout(() => {
+              releaseStop();
+              flyLeg(
+                chapter.pins[i],
+                chapter.pins[i + 1],
+                chapter.altitude,
+                () => holdStop(i + 1),
+                () => tourFrom(i + 1),
+              );
+            }, TOUR_DWELL_MS),
           );
         };
         // The first waypoint also confirms on final approach, a lead
         // before the approach flight actually lands on it.
         timers.push(
-          window.setTimeout(
-            () => setLockedCount((count) => Math.max(count, 1)),
-            Math.max(0, FLIGHT_MS - LOCK_LEAD_MS),
-          ),
+          window.setTimeout(() => holdStop(0), Math.max(0, FLIGHT_MS - LOCK_LEAD_MS)),
         );
         timers.push(window.setTimeout(() => tourFrom(0), FLIGHT_MS));
       }, FLIGHT_DEBOUNCE_MS),
@@ -1093,7 +1173,7 @@ export default function GlobeScene({
       timers.forEach((t) => window.clearTimeout(t));
       cancelAnimationFrame(frame);
     };
-  }, [activeId, ready, reducedMotion, diving]);
+  }, [activeId, ready, reducedMotion, diving, manual]);
 
   // The "down to earth" dive: plunge straight into the active place.
   useEffect(() => {

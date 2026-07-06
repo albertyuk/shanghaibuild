@@ -599,6 +599,7 @@ export function EditorApp() {
           {textField("Chapters heading", site.chaptersHeading, (v) => setSite({ ...site, chaptersHeading: v }))}
           {textField("Toggle — down", site.earthDown, (v) => setSite({ ...site, earthDown: v }))}
           {textField("Toggle — up", site.earthUp, (v) => setSite({ ...site, earthUp: v }))}
+          {textField("Next-location button", site.cycleLabel, (v) => setSite({ ...site, cycleLabel: v }))}
           {textField("Loading label", site.loadingLabel, (v) => setSite({ ...site, loadingLabel: v }))}
           {textField("South Pole easter egg", site.poleEgg, (v) => setSite({ ...site, poleEgg: v }))}
           {textField("Second-photo heading", site.ibidLabel, (v) => setSite({ ...site, ibidLabel: v }))}

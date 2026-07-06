@@ -135,6 +135,7 @@ ${site.contact.map((c) => `    { label: ${s(c.label)}, href: ${s(c.href)} },`).j
   ],
   earthDown: ${s(site.earthDown)},
   earthUp: ${s(site.earthUp)},
+  cycleLabel: ${s(site.cycleLabel)},
   loadingLabel: ${s(site.loadingLabel)},
   poleEgg: ${s(site.poleEgg)},
   ibidLabel: ${s(site.ibidLabel)},

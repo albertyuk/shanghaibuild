@@ -44,7 +44,9 @@ export function PhotoCallouts({ stop, reducedMotion }: Props) {
       view.stop?.pinIndex === stop?.pinIndex
     )
       return;
-    if (reducedMotion) {
+    if (reducedMotion || view.stop === null) {
+      // Nothing on screen to dematerialize — key the new set straight
+      // in, so arrival panels sync with the lock-on flicker.
       setView({ stop, leaving: false });
       return;
     }

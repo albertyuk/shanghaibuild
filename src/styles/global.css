@@ -344,6 +344,28 @@ button {
   color: var(--muted);
 }
 
+/* ---------- "Next location" cycle button ---------- */
+
+/* Same P3 chip as the earth toggle (it shares the class for its chrome),
+ * parked at the map pane's bottom corner above the flight readout. Only
+ * rendered while a multi-location chapter is active; each press hops the
+ * camera to the chapter's next pin. */
+.cycle-toggle {
+  top: auto;
+  right: calc(100vw - var(--globe-width-desktop) + clamp(16px, 2vw, 28px));
+  bottom: 48px;
+}
+
+@media (max-width: 899px) {
+  /* The mobile pane is sticky at the viewport top, so pin the chip to
+   * its bottom-right corner, clear of the readout and the corner tick. */
+  .cycle-toggle {
+    right: 12px;
+    bottom: auto;
+    top: calc(var(--globe-height-mobile) - 66px);
+  }
+}
+
 /* ---------- Globe pane ---------- */
 
 .globe-pane {

@@ -98,8 +98,8 @@ export const chapters: Chapter[] = [
     pins: [
       { city: "Almaty", country: "Kazakhstan", lat: 43.238, lng: 76.8829, photos: [{ src: "/photos/0c0ea97a-0203-49b3-b9c0-94fec94a3cb3-1-105-c.jpeg" }], panel: { x: 39.6, y: 12.6 } },
       { city: "Samarkand", country: "Uzbekistan", lat: 39.6542, lng: 66.9597, photos: [{ src: "/photos/9501c106-4612-4ce6-a274-d390ddfdcc3e-1-105-c.jpeg" }], panel: { x: 0, y: 18.7 } },
-      { city: "Jerusalem", country: "Israel", lat: 31.7683, lng: 35.2137, photos: [{ src: "/photos/bb0f4995-a011-4c57-baa6-e2a6a6c06f9c-1-105-c.jpeg" }, { src: "/photos/7a7d93f4-b95b-4530-895c-3e5d63c223bf-1-105-c.webp" }], panel: { x: 40.1, y: 10 } },
       { city: "Tehran", country: "Iran", lat: 35.6892, lng: 51.389, photos: [{ src: "/photos/66bd7afc-4e51-4d82-857e-06965a0c3f8f-1-105-c.jpeg" }, { src: "/photos/3a5e2319-a5b8-4bef-a38d-ea2d2be7bcb0-1-105-c.jpeg" }], panel: { x: 39.8, y: 8.7 } },
+      { city: "Jerusalem", country: "Israel", lat: 31.7683, lng: 35.2137, photos: [{ src: "/photos/bb0f4995-a011-4c57-baa6-e2a6a6c06f9c-1-105-c.jpeg" }, { src: "/photos/7a7d93f4-b95b-4530-895c-3e5d63c223bf-1-105-c.webp" }], panel: { x: 40.1, y: 10 } },
     ],
     arcs: [
       [0, 1],
@@ -162,6 +162,7 @@ export const site = {
   ],
   earthDown: "Down to earth",
   earthUp: "Back to orbit",
+  cycleLabel: "Next location",
   loadingLabel: "Plotting the atlas",
   poleEgg: "to be continued?",
   ibidLabel: "Ibid.",
