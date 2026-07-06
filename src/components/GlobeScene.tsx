@@ -144,7 +144,7 @@ const RING_CHUNK_POINTS = 12000;
 // runs carry a stroke, which makes three-globe render them as fat
 // lines (Line2) with a screen-constant PIXEL width — coasts and rivers
 // stay 1px hairlines. Slightly heavier borders read as admin lines.
-const BORDER_STROKE_PX = 1.8;
+const BORDER_STROKE_PX = 1.4;
 const PATH_STROKE = (datum: object) =>
   (datum as PathDatum).kind === "border" ? BORDER_STROKE_PX : null;
 const PATH_POINTS = (datum: object) => (datum as PathDatum).points;
