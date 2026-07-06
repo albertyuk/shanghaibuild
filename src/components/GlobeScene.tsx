@@ -140,7 +140,13 @@ const tileVertices = (tile: LandPolygon) =>
 const TILE_CHUNK_VERTICES = 1500;
 const RING_CHUNK_POINTS = 12000;
 
-// Stable accessors for the coastline/border/river path layer.
+// Stable accessors for the coastline/border/river path layer. Border
+// runs carry a stroke, which makes three-globe render them as fat
+// lines (Line2) with a screen-constant PIXEL width — coasts and rivers
+// stay 1px hairlines. Slightly heavier borders read as admin lines.
+const BORDER_STROKE_PX = 1.8;
+const PATH_STROKE = (datum: object) =>
+  (datum as PathDatum).kind === "border" ? BORDER_STROKE_PX : null;
 const PATH_POINTS = (datum: object) => (datum as PathDatum).points;
 const PATH_POINT_LAT = (point: object) => (point as number[])[1];
 const PATH_POINT_LNG = (point: object) => (point as number[])[0];
@@ -236,6 +242,35 @@ function clipBehindHorizon<T extends { onBeforeCompile: unknown; customProgramCa
   };
   (material as { customProgramCacheKey: () => string }).customProgramCacheKey = () =>
     stipple ? "horizon-clip-stipple" : "horizon-clip";
+  return material;
+}
+
+/**
+ * Horizon clip for fat-line materials (three's LineMaterial): their
+ * shader lacks the begin_vertex anchor the standard clip injects into,
+ * so the varying rides on the segment-start attribute instead. Segments
+ * are short, so per-segment clipping is indistinguishable from
+ * per-fragment.
+ */
+function clipFatLineBehindHorizon<T extends { onBeforeCompile: unknown; customProgramCacheKey?: unknown }>(
+  material: T,
+): T {
+  (material as { onBeforeCompile: (shader: { vertexShader: string; fragmentShader: string }) => void }).onBeforeCompile = (shader) => {
+    shader.vertexShader =
+      "varying vec3 vGlobePos;\n" +
+      shader.vertexShader.replace(
+        "void main() {",
+        "void main() {\n\tvGlobePos = (modelMatrix * vec4(instanceStart, 1.0)).xyz;",
+      );
+    shader.fragmentShader =
+      "varying vec3 vGlobePos;\n" +
+      shader.fragmentShader.replace(
+        "void main() {",
+        `void main() {\n\tif (dot(normalize(vGlobePos), normalize(cameraPosition)) < ${GLOBE_RADIUS.toFixed(1)} / length(cameraPosition) - 0.005) discard;`,
+      );
+  };
+  (material as { customProgramCacheKey: () => string }).customProgramCacheKey = () =>
+    "horizon-clip-fatline";
   return material;
 }
 
@@ -504,10 +539,14 @@ export default function GlobeScene({
         // these materials afterwards.
         plan.push(() => {
           for (const line of lines) {
-            const obj = (line as { __threeObjPath?: { material?: { needsUpdate: boolean; userData: Record<string, boolean> } } }).__threeObjPath;
+            const obj = (line as { __threeObjPath?: { material?: { needsUpdate: boolean; userData: Record<string, boolean>; isLineMaterial?: boolean } } }).__threeObjPath;
             const material = obj?.material;
             if (material && !material.userData.horizonClip) {
-              clipBehindHorizon(material as unknown as Parameters<typeof clipBehindHorizon>[0]);
+              if (material.isLineMaterial) {
+                clipFatLineBehindHorizon(material as unknown as Parameters<typeof clipFatLineBehindHorizon>[0]);
+              } else {
+                clipBehindHorizon(material as unknown as Parameters<typeof clipBehindHorizon>[0]);
+              }
               material.needsUpdate = true;
               material.userData.horizonClip = true;
             }
@@ -1096,6 +1135,7 @@ export default function GlobeScene({
           pathPointLng={PATH_POINT_LNG}
           pathColor={palette.pathColorAccessor}
           pathPointAlt={pathPointAltAccessor}
+          pathStroke={PATH_STROKE}
           pathTransitionDuration={0}
           pointsData={points}
           pointLat={POINT_LAT}
