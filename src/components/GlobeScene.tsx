@@ -73,7 +73,7 @@ const TOUR_CLIMB = 0.25;
 const TOUR_OVERVIEW_MS = 1800;
 /** Waypoints confirm on final approach: the lock-on flicker fires this
  *  far before the camera actually arrives at the pin. */
-const LOCK_LEAD_MS = 1000;
+const LOCK_LEAD_MS = 700;
 /** The "down to earth" plunge. */
 const DIVE_MS = 900;
 const DIVE_ALTITUDE = 0.03;
