@@ -126,11 +126,17 @@ button {
   gap: 18px;
 }
 
+/* The reticle locks onto the screen first — the waypoint scale sweep
+ * with the stepped stutter — then settles into its idle pulse (delayed
+ * so the entrance owns the first half second). */
 .boot-mark {
   width: 44px;
   height: 44px;
   overflow: visible;
-  animation: boot-pulse 1600ms var(--ease-slip) infinite;
+  animation:
+    waypoint-lock 420ms var(--ease-slip) both,
+    waypoint-stutter 520ms step-end both,
+    boot-pulse 1600ms var(--ease-slip) 520ms infinite;
 }
 
 .boot-mark rect,
@@ -173,6 +179,54 @@ button {
   color: var(--muted);
 }
 
+/* Screen readers get the plain label string; the per-character spans
+ * below are pure decoration. */
+.boot-label-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* The label types itself in: each character lands as a solid accent
+ * block, decodes to its letter, drops out once, and holds — staggered
+ * left to right (per-character delays set inline). */
+.boot-ch {
+  display: inline-block;
+  animation: char-pop 380ms step-end both;
+}
+
+@keyframes char-pop {
+  0% {
+    opacity: 0;
+    background-color: var(--accent);
+    color: transparent;
+  }
+  22% {
+    opacity: 1;
+    background-color: var(--accent);
+    color: transparent;
+  }
+  55% {
+    opacity: 1;
+    background-color: transparent;
+    color: var(--muted);
+  }
+  68% {
+    opacity: 0.3;
+    background-color: transparent;
+    color: var(--muted);
+  }
+  80%,
+  100% {
+    opacity: 1;
+    background-color: transparent;
+    color: var(--muted);
+  }
+}
+
 /* Map-stream progress: a hairline track whose accent fill scales with
  * committed chunks (written to the DOM from the globe scene). The
  * transition smooths the per-chunk steps into one continuous sweep. */
@@ -181,6 +235,8 @@ button {
   height: 2px;
   background: var(--hairline);
   overflow: hidden;
+  /* The track acquires once the label has mostly typed itself in. */
+  animation: text-acquire 360ms step-end 750ms both;
 }
 
 .boot-progress-fill {
