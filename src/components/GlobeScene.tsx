@@ -506,6 +506,14 @@ export default function GlobeScene({
       }));
   }, [activeId]);
 
+  // Waypoints confirm as the camera reaches them: lockedCount is how
+  // many of the active chapter's pins the tour has arrived at so far.
+  // Reticles below that index wear .locked (full brightness + the
+  // lock-on flicker); the rest wait dim on the scope. The tour effect
+  // advances it at each real arrival.
+  const [lockedCount, setLockedCount] = useState(0);
+  const lockedFor = useRef<string | null>(activeId);
+
   // Chapter switches never yank the overlay markers away mid-frame: the
   // outgoing set lingers for a short leaving beat (CSS fades it), then
   // the new chapter's markers key in and play their lock-on entrance.
@@ -709,6 +717,12 @@ export default function GlobeScene({
   // cancels the remaining stops mid-flight.
   useEffect(() => {
     if (!ready || diving) return;
+    // New chapter: every waypoint back to unconfirmed. (Keyed by id so
+    // re-runs for other deps don't reset locks mid-view.)
+    if (lockedFor.current !== activeId) {
+      lockedFor.current = activeId;
+      setLockedCount(0);
+    }
     const timers: number[] = [];
     let frame = 0;
     let cancelled = false;
@@ -772,6 +786,8 @@ export default function GlobeScene({
         }
         if (reducedMotion) {
           globe.pointOfView(chapterOverview(chapter), 0);
+          // No tour, no flicker — every waypoint reads as confirmed.
+          setLockedCount(chapter.pins.length);
           return;
         }
         // The approach flight has no line to follow — a plain tween, on
@@ -782,7 +798,11 @@ export default function GlobeScene({
           { lat: first.lat, lng: nearestLng(first.lng, refLng), altitude: chapter.altitude },
           FLIGHT_MS,
         );
+        // tourFrom(i) runs the moment the camera is AT pin i — the
+        // lock-on instant for that waypoint. The approach flight feeds
+        // it pin 0; every completed leg feeds it the next stop.
         const tourFrom = (i: number) => {
+          setLockedCount((count) => Math.max(count, i + 1));
           if (i + 1 >= chapter.pins.length) {
             // The finale: after the last stop, pull back just far enough
             // that the whole journey — every pin and arc — is in frame.
@@ -866,10 +886,12 @@ export default function GlobeScene({
           {/* Waypoint reticles on every pin of the active chapter: a
            * diamond outline, four outer ticks, and a center dot. The
            * outer group takes the tracker's translate; the inner group
-           * carries the lock-on scale animation, so they never fight. */}
+           * carries the lock-on animation, so they never fight. Marks
+           * wait dim until the camera actually arrives at their pin —
+           * .locked lands per tour stop and plays the flicker then. */}
           {activePins.map((pin, i) => (
             <g key={`${pin.lat},${pin.lng}`} className="waypoint">
-              <g className="waypoint-mark" style={{ animationDelay: `${300 + i * 90}ms` }}>
+              <g className={i < lockedCount ? "waypoint-mark locked" : "waypoint-mark"}>
                 <rect
                   className="wp-diamond"
                   x={-5.2}

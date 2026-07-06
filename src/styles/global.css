@@ -479,16 +479,30 @@ button {
   animation: leader-draw 300ms var(--ease-slip) both;
 }
 
-/* The waypoint reticle: diamond outline, outer ticks, center dot. It
- * arrives with a lock-on — the scale sweep stays smooth while the
- * opacity stutters in square steps, a lock confirming digitally. The
- * later animation in the list owns opacity. */
+/* The waypoint reticle: diamond outline, outer ticks, center dot.
+ * Unconfirmed contacts sit dim on the scope; when the camera actually
+ * arrives at a pin, GlobeScene stamps .locked and the mark plays its
+ * lock-on — the scale sweep stays smooth while the opacity stutters in
+ * square steps, a lock confirming digitally. The later animation in
+ * the list owns opacity. */
 .leader-lines .waypoint-mark {
   transform-box: fill-box;
   transform-origin: center;
+  opacity: 0.35;
+  animation: waypoint-appear 260ms var(--ease-slip) both;
+}
+
+.leader-lines .waypoint-mark.locked {
+  opacity: 1;
   animation:
     waypoint-lock 320ms var(--ease-slip) both,
     waypoint-stutter 480ms step-end both;
+}
+
+@keyframes waypoint-appear {
+  from {
+    opacity: 0;
+  }
 }
 
 .leader-lines .wp-diamond {
