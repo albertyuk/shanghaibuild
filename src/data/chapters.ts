@@ -65,7 +65,7 @@ export const chapters: Chapter[] = [
     dates: "May – Jun 2025",
     blurb:
       "Assisted photographer Chen Man on roughly 20 commercial fashion shoots — lighting setups, on-set production logistics, and shoot scheduling.",
-    pins: [{ city: "West Bund · Shanghai", country: "China", lat: 31.169, lng: 121.456, photos: [{ src: "/photos/5c83c842-4cd1-4a60-985c-ff8167a071cf-1-105-c.jpeg" }, { src: "/photos/5251b04b-1af6-4a44-be9e-dfa0b3c63ae1-1-105-c.jpeg" }] }],
+    pins: [{ city: "West Bund · Shanghai", country: "China", lat: 31.169, lng: 121.456, photos: [{ src: "/photos/5c83c842-4cd1-4a60-985c-ff8167a071cf-1-105-c.jpeg" }, { src: "/photos/5251b04b-1af6-4a44-be9e-dfa0b3c63ae1-1-105-c.jpeg" }], panel: { x: 5.3, y: 57.6 } }],
     altitude: 0.022,
     link: "https://www.yukalbert.com/photograph",
   },
@@ -96,10 +96,10 @@ export const chapters: Chapter[] = [
     blurb:
       "Production assistance across Central Asia and the Middle East, documenting cultural and geopolitical change — the journey behind the Central Asia, Israel, and Iran photo series.",
     pins: [
-      { city: "Almaty", country: "Kazakhstan", lat: 43.238, lng: 76.8829, photos: [{ src: "/photos/0c0ea97a-0203-49b3-b9c0-94fec94a3cb3-1-105-c.jpeg" }] },
-      { city: "Samarkand", country: "Uzbekistan", lat: 39.6542, lng: 66.9597, photos: [{ src: "/photos/9501c106-4612-4ce6-a274-d390ddfdcc3e-1-105-c.jpeg" }] },
-      { city: "Jerusalem", country: "Israel", lat: 31.7683, lng: 35.2137, photos: [{ src: "/photos/bb0f4995-a011-4c57-baa6-e2a6a6c06f9c-1-105-c.jpeg" }, { src: "/photos/7a7d93f4-b95b-4530-895c-3e5d63c223bf-1-105-c.webp" }] },
-      { city: "Tehran", country: "Iran", lat: 35.6892, lng: 51.389, photos: [{ src: "/photos/66bd7afc-4e51-4d82-857e-06965a0c3f8f-1-105-c.jpeg" }, { src: "/photos/3a5e2319-a5b8-4bef-a38d-ea2d2be7bcb0-1-105-c.jpeg" }] },
+      { city: "Almaty", country: "Kazakhstan", lat: 43.238, lng: 76.8829, photos: [{ src: "/photos/0c0ea97a-0203-49b3-b9c0-94fec94a3cb3-1-105-c.jpeg" }], panel: { x: 41.7, y: 13.6 } },
+      { city: "Samarkand", country: "Uzbekistan", lat: 39.6542, lng: 66.9597, photos: [{ src: "/photos/9501c106-4612-4ce6-a274-d390ddfdcc3e-1-105-c.jpeg" }], panel: { x: 42.2, y: 69.2 } },
+      { city: "Jerusalem", country: "Israel", lat: 31.7683, lng: 35.2137, photos: [{ src: "/photos/bb0f4995-a011-4c57-baa6-e2a6a6c06f9c-1-105-c.jpeg" }, { src: "/photos/7a7d93f4-b95b-4530-895c-3e5d63c223bf-1-105-c.webp" }], panel: { x: 1.9, y: 68.6 } },
+      { city: "Tehran", country: "Iran", lat: 35.6892, lng: 51.389, photos: [{ src: "/photos/66bd7afc-4e51-4d82-857e-06965a0c3f8f-1-105-c.jpeg" }, { src: "/photos/3a5e2319-a5b8-4bef-a38d-ea2d2be7bcb0-1-105-c.jpeg" }], panel: { x: 2.7, y: 15 } },
     ],
     arcs: [
       [0, 1],
@@ -118,9 +118,9 @@ export const chapters: Chapter[] = [
     blurb:
       "Solo-directed, shot, and edited a documentary following MAGA hats from the factories of Yiwu through the Port of Shanghai to a rally crowd in Pennsylvania. All-American High School Film Festival Spark Award — top 1% of 2,700+ submissions.",
     pins: [
-      { city: "Yiwu", country: "China", lat: 29.3069, lng: 120.0753, photos: [{ src: "/photos/2026-07-06-10.47.02.webp" }] },
-      { city: "Port of Shanghai", country: "China", lat: 30.6289, lng: 122.0639, photos: [{ src: "/photos/470f90c4-25c2-46df-bfb0-faa8b35a7f9c-1-102-o.webp" }] },
-      { city: "Butler, PA", country: "United States", lat: 40.8612, lng: -79.8953, photos: [{ src: "/photos/2026-07-06-10.46.26.webp" }] },
+      { city: "Yiwu", country: "China", lat: 29.3069, lng: 120.0753, photos: [{ src: "/photos/2026-07-06-10.47.02.webp" }], panel: { x: 4, y: 68.7 } },
+      { city: "Port of Shanghai", country: "China", lat: 30.6289, lng: 122.0639, photos: [{ src: "/photos/470f90c4-25c2-46df-bfb0-faa8b35a7f9c-1-102-o.webp" }], panel: { x: 4.5, y: 11.9 } },
+      { city: "Butler, PA", country: "United States", lat: 40.8612, lng: -79.8953, photos: [{ src: "/photos/2026-07-06-10.46.26.webp" }], panel: { x: 42.5, y: 68.2 } },
     ],
     arcs: [
       [0, 1],
