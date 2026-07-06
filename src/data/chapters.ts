@@ -22,6 +22,10 @@ export interface Pin {
    *  later (hand-edit or the private editor at /edit.html); empty or
    *  missing means no panel renders. */
   photos?: PhotoSlot[];
+  /** Exact screen placement for this pin's photo panel: its top-left
+   *  corner as percentages of the viewport (0–100, x across / y down).
+   *  Set on the editor's placement page; omit for the default stack. */
+  panel?: { x: number; y: number };
 }
 
 export interface Chapter {
@@ -159,6 +163,7 @@ export const site = {
   earthDown: "Down to earth",
   earthUp: "Back to orbit",
   loadingLabel: "Plotting the atlas",
+  poleEgg: "to be continued?",
   footerNote:
     "Single static page. The globe is drawn locally from vector data (Natural Earth; river detail © OpenStreetMap contributors); nothing on this site tracks you.",
   skipLinkLabel: "Skip to chapters",

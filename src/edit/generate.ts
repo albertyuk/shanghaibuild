@@ -93,6 +93,10 @@ export interface Pin {
    *  later (hand-edit or the private editor at /edit.html); empty or
    *  missing means no panel renders. */
   photos?: PhotoSlot[];
+  /** Exact screen placement for this pin's photo panel: its top-left
+   *  corner as percentages of the viewport (0–100, x across / y down).
+   *  Set on the editor's placement page; omit for the default stack. */
+  panel?: { x: number; y: number };
 }
 
 export interface Chapter {
