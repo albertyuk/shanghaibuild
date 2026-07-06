@@ -60,11 +60,26 @@ export async function assertWriteAccess(target: PublishTarget): Promise<void> {
   if (!res.ok) {
     throw new Error(`GitHub ${res.status} while checking repo access.`);
   }
-  const data = (await res.json()) as { permissions?: { push?: boolean } };
+  const data = (await res.json()) as {
+    permissions?: { push?: boolean };
+    default_branch?: string;
+  };
   if (!data.permissions?.push) {
     throw new Error(
       "The token can see the repo but has no write access. Edit the token's Repository permissions and set Contents to \"Read and write\" (or use a classic token with the repo scope).",
     );
+  }
+  const branchRes = await fetch(
+    `https://api.github.com/repos/${target.owner}/${target.repo}/branches/${encodeURIComponent(target.branch)}`,
+    { headers: headers(target.token) },
+  );
+  if (branchRes.status === 404) {
+    throw new Error(
+      `Branch "${target.branch}" doesn't exist in ${target.owner}/${target.repo}. Its default branch is "${data.default_branch}" — put that (or whichever branch your host deploys) in the Branch field.`,
+    );
+  }
+  if (!branchRes.ok) {
+    throw new Error(`GitHub ${branchRes.status} while checking branch "${target.branch}".`);
   }
 }
 

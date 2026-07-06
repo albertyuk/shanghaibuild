@@ -90,7 +90,7 @@ export function EditorApp() {
   const [ghToken, setGhToken] = useState("");
   const [ghOwner, setGhOwner] = useState("albertyuk");
   const [ghRepo, setGhRepo] = useState("shanghaibuild");
-  const [ghBranch, setGhBranch] = useState("main");
+  const [ghBranch, setGhBranch] = useState("claude/albert-yuk-portfolio-3zs6lb");
   const [publishing, setPublishing] = useState(false);
   const [publishLog, setPublishLog] = useState<string[]>([]);
 
