@@ -137,6 +137,7 @@ ${site.contact.map((c) => `    { label: ${s(c.label)}, href: ${s(c.href)} },`).j
   earthUp: ${s(site.earthUp)},
   loadingLabel: ${s(site.loadingLabel)},
   poleEgg: ${s(site.poleEgg)},
+  ibidLabel: ${s(site.ibidLabel)},
   footerNote:
     ${s(site.footerNote)},
   skipLinkLabel: ${s(site.skipLinkLabel)},

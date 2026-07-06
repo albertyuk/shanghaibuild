@@ -164,6 +164,7 @@ export const site = {
   earthUp: "Back to orbit",
   loadingLabel: "Plotting the atlas",
   poleEgg: "to be continued?",
+  ibidLabel: "Ibid.",
   footerNote:
     "Single static page. The globe is drawn locally from vector data (Natural Earth; river detail © OpenStreetMap contributors); nothing on this site tracks you.",
   skipLinkLabel: "Skip to chapters",

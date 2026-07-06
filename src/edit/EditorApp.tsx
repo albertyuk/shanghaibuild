@@ -466,16 +466,16 @@ export function EditorApp() {
                   const photos = (pin.photos ?? [])
                     .filter((photo) => photo.src.trim())
                     .slice(0, 2);
-                  const captions = photos.map((photo) => photo.caption).filter(Boolean);
                   const pendingUpload = photos.some((photo) => broken[photo.src]);
-                  // Unplaced panels sit in a sketch of the live default
-                  // stack (bottom-right, story order top to bottom). All
-                  // panels stay direct children of the stage, so a drag
-                  // never reparents the node it is capturing.
+                  // Unplaced stacks sit in a sketch of the live default
+                  // corner. All stacks stay direct children of the stage,
+                  // so a drag never reparents the node it is capturing.
+                  // Like the live site, a second photo of the same place
+                  // gets its own panel headed by the "Ibid." label.
                   const stackSlot = unpositioned.indexOf(pinIndex);
                   return (
-                    <figure
-                      className="photo-callout"
+                    <div
+                      className="pos-callout-stack"
                       key={pinIndex}
                       style={
                         pin.panel
@@ -490,39 +490,42 @@ export function EditorApp() {
                       onPointerUp={endPanelDrag}
                       onPointerCancel={endPanelDrag}
                     >
-                      <figcaption className="photo-callout-title">{pin.city}</figcaption>
-                      <div className="photo-callout-strip">
-                        {photos.map((photo, j) => (
-                          <img
-                            key={j}
-                            src={previewFor(photo.src) ?? photo.src}
-                            alt={photo.caption ?? pin.city}
-                            draggable={false}
-                            onError={() =>
-                              setBroken((prev) =>
-                                prev[photo.src] ? prev : { ...prev, [photo.src]: true },
-                              )
-                            }
-                            onLoad={() =>
-                              setBroken((prev) =>
-                                prev[photo.src] ? { ...prev, [photo.src]: false } : prev,
-                              )
-                            }
-                          />
-                        ))}
-                      </div>
-                      <p className="photo-callout-data">
-                        {formatCoordinate(pin.lat, pin.lng)} · {pin.country.toUpperCase()}
-                      </p>
-                      {captions.length > 0 && (
-                        <p className="photo-callout-caption">{captions.join(" · ")}</p>
-                      )}
+                      {photos.map((photo, j) => (
+                        <figure className="photo-callout" key={j}>
+                          <figcaption className="photo-callout-title">
+                            {j === 0 ? pin.city : site.ibidLabel}
+                          </figcaption>
+                          <div className="photo-callout-strip">
+                            <img
+                              src={previewFor(photo.src) ?? photo.src}
+                              alt={photo.caption ?? pin.city}
+                              draggable={false}
+                              onError={() =>
+                                setBroken((prev) =>
+                                  prev[photo.src] ? prev : { ...prev, [photo.src]: true },
+                                )
+                              }
+                              onLoad={() =>
+                                setBroken((prev) =>
+                                  prev[photo.src] ? { ...prev, [photo.src]: false } : prev,
+                                )
+                              }
+                            />
+                          </div>
+                          <p className="photo-callout-data">
+                            {formatCoordinate(pin.lat, pin.lng)} · {pin.country.toUpperCase()}
+                          </p>
+                          {photo.caption && (
+                            <p className="photo-callout-caption">{photo.caption}</p>
+                          )}
+                        </figure>
+                      ))}
                       {pendingUpload && (
                         <p className="preview-pending">
                           image not loading — publish or commit the file
                         </p>
                       )}
-                    </figure>
+                    </div>
                   );
                 })}
               </div>
@@ -598,6 +601,7 @@ export function EditorApp() {
           {textField("Toggle — up", site.earthUp, (v) => setSite({ ...site, earthUp: v }))}
           {textField("Loading label", site.loadingLabel, (v) => setSite({ ...site, loadingLabel: v }))}
           {textField("South Pole easter egg", site.poleEgg, (v) => setSite({ ...site, poleEgg: v }))}
+          {textField("Second-photo heading", site.ibidLabel, (v) => setSite({ ...site, ibidLabel: v }))}
           {textField("Skip link", site.skipLinkLabel, (v) => setSite({ ...site, skipLinkLabel: v }))}
         </div>
         <h3>Contact links</h3>

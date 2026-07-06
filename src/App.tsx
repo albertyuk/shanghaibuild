@@ -6,7 +6,7 @@ import { ChapterIndex } from "./components/ChapterIndex";
 import { SiteFooter } from "./components/SiteFooter";
 import { GlobePlaceholder } from "./components/GlobePlaceholder";
 import { GlobeErrorBoundary } from "./components/GlobeErrorBoundary";
-import { PhotoCallouts } from "./components/PhotoCallouts";
+import { PhotoCallouts, type TourStop } from "./components/PhotoCallouts";
 import { Decode } from "./components/Decode";
 import { hasWebGL } from "./lib/webgl";
 import { readingCenterFraction } from "./lib/viewport";
@@ -29,6 +29,16 @@ export default function App() {
   const webgl = useMemo(hasWebGL, []);
   const isDesktop = useMediaQuery("(min-width: 900px)");
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+  // The globe tour's current stop — which pin the camera has locked
+  // onto. Photo callouts render per stop, so each location's photos
+  // appear as the camera arrives there.
+  const [stop, setStop] = useState<TourStop | null>(null);
+  const handleWaypoint = useCallback(
+    (chapterId: string | null, pinIndex: number) => {
+      setStop(chapterId !== null && pinIndex >= 0 ? { chapterId, pinIndex } : null);
+    },
+    [],
+  );
   // Boot veil: covers the page while the globe streams its map in, then
   // fades away. Dismissed by the globe's loaded callback, with a hard
   // failsafe so a stalled fetch can never trap the visitor behind it.
@@ -192,7 +202,7 @@ export default function App() {
         </button>
       )}
       {showGlobe && isDesktop && (
-        <PhotoCallouts activeId={activeId} reducedMotion={reducedMotion} />
+        <PhotoCallouts stop={stop} reducedMotion={reducedMotion} />
       )}
       {showGlobe && (
         <div className="globe-pane" aria-hidden="true">
@@ -205,6 +215,7 @@ export default function App() {
                 diving={diving}
                 onLoaded={bootDone}
                 onProgress={bootProgress}
+                onWaypoint={handleWaypoint}
               />
             </Suspense>
           </GlobeErrorBoundary>

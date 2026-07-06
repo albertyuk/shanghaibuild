@@ -407,10 +407,10 @@ button {
 
 /* ---------- Briefing photo callouts ---------- */
 
-/* Sat-photo panels for the active chapter's pins, stacked under the
- * pane's top corner tick. Rendered only when a pin has photo slots
- * filled. Each panel materializes — a wipe following its leader line's
- * draw — rather than popping in. */
+/* Sat-photo panels for the tour's current stop: one panel per photo of
+ * the pin the camera just locked onto. Rendered only when that pin has
+ * photo slots filled. Each panel materializes — a wipe following its
+ * leader line's draw — rather than popping in. */
 .photo-callouts {
   position: fixed;
   /* Off the map entirely: the page's bottom-right corner, where the
@@ -494,14 +494,14 @@ button {
   padding: 8px 8px 0;
 }
 
-/* Recon-photo desaturation: images read as satellite stills. */
+/* Full-color stills: the sync flicker plays in brightness only, so the
+ * photos land true once the feed settles. */
 .photo-callout img {
   display: block;
   flex: 1 1 0;
   min-width: 0;
   width: 100%;
   border: 1px solid var(--hairline);
-  filter: saturate(0.25) contrast(1.05);
 }
 
 /* Data strip: real coordinates + country, like the readout rows under
@@ -1184,28 +1184,28 @@ button {
   animation: cursor-blink 900ms step-end infinite;
 }
 
-/* Sat-photo feed syncing: overexposed, a dropout, then settled. The
- * base recon filter rides along in every frame. */
+/* Sat-photo feed syncing: overexposed, a dropout, then settled — in
+ * brightness only, so the photo ends at its true colors. */
 @keyframes photo-sync {
   0% {
     opacity: 0;
-    filter: saturate(0.25) contrast(1.05) brightness(2.1);
+    filter: brightness(2.1);
   }
   16% {
     opacity: 1;
-    filter: saturate(0.25) contrast(1.05) brightness(1.7);
+    filter: brightness(1.7);
   }
   28% {
     opacity: 0.35;
-    filter: saturate(0.25) contrast(1.05) brightness(2);
+    filter: brightness(2);
   }
   42% {
     opacity: 1;
-    filter: saturate(0.25) contrast(1.05) brightness(0.92);
+    filter: brightness(0.92);
   }
   100% {
     opacity: 1;
-    filter: saturate(0.25) contrast(1.05) brightness(1);
+    filter: brightness(1);
   }
 }
 

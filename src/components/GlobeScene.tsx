@@ -17,6 +17,11 @@ interface Props {
   /** Streaming progress: chunks committed out of the total plan. Fired
    *  once per chunk — the boot veil's progress bar reads this. */
   onProgress?: (done: number, total: number) => void;
+  /** Fired when the tour's current stop changes: the chapter shown and
+   *  the index of the pin the camera has most recently locked onto
+   *  (-1 before the first lock). The photo callouts follow this, so
+   *  each location's panels appear as the camera arrives there. */
+  onWaypoint?: (chapterId: string | null, pinIndex: number) => void;
 }
 
 interface PointDatum {
@@ -336,6 +341,7 @@ export default function GlobeScene({
   diving,
   onLoaded,
   onProgress,
+  onWaypoint,
 }: Props) {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -704,16 +710,28 @@ export default function GlobeScene({
     return chapter ? [...chapter.pins] : [];
   }, [markerId]);
 
-  // Pins whose photo callouts get a leader line drawn to them (matches
-  // the panels PhotoCallouts renders, in the same order). Desktop only:
-  // the panels those lines point at never render on mobile.
-  const photoPins = useMemo<Pin[]>(
-    () =>
-      isDesktop
-        ? activePins.filter((pin) => pin.photos && pin.photos.length > 0).slice(0, 2)
-        : [],
-    [activePins, isDesktop],
-  );
+  // The current stop, reported upward as it changes — App feeds it to
+  // PhotoCallouts. A ref carries the latest callback, like onLoaded.
+  const onWaypointRef = useRef(onWaypoint);
+  onWaypointRef.current = onWaypoint;
+  useEffect(() => {
+    onWaypointRef.current?.(markerId, lockedCount - 1);
+  }, [markerId, lockedCount]);
+
+  // The pin the tour is currently at: photo panels and their leader
+  // lines exist only for this stop, so each location's photos appear as
+  // the camera locks onto it — not the whole chapter's at once. Desktop
+  // only: the panels those lines point at never render on mobile.
+  const stopPin = useMemo<Pin | null>(() => {
+    if (!isDesktop || lockedCount < 1) return null;
+    const chapter = chapters.find((ch) => ch.id === markerId);
+    if (!chapter) return null;
+    return chapter.pins[Math.min(lockedCount - 1, chapter.pins.length - 1)];
+  }, [isDesktop, lockedCount, markerId]);
+  // One leader line per panel; PhotoCallouts renders one panel per photo.
+  const stopPanelCount = stopPin
+    ? Math.min((stopPin.photos ?? []).filter((photo) => photo.src).length, 2)
+    : 0;
 
   // Leader lines: from each callout panel's edge to its pin's projected
   // screen position, re-aimed every frame (the camera is usually moving,
@@ -733,7 +751,7 @@ export default function GlobeScene({
     const lines = svg.querySelectorAll<SVGPolylineElement>("polyline");
     let panels: HTMLElement[] = [];
     const panelsFresh = () =>
-      panels.length === photoPins.length && panels.every((p) => p.isConnected);
+      panels.length === stopPanelCount && panels.every((p) => p.isConnected);
     const update = () => {
       frame = requestAnimationFrame(update);
       const globe = globeRef.current;
@@ -760,35 +778,39 @@ export default function GlobeScene({
         mark.setAttribute("transform", `translate(${screen.x}, ${screen.y})`);
         mark.style.visibility = "visible";
       });
-      // Leader lines from each photo panel to its pin.
+      // Leader lines from each photo panel to the current stop's pin.
       if (!panelsFresh()) {
         panels = [...document.querySelectorAll<HTMLElement>(".photo-callout")];
       }
-      photoPins.forEach((pin, i) => {
-        const line = lines[i];
+      const stopVisible = stopPin && !behindHorizon(stopPin);
+      const screen = stopVisible
+        ? globe.getScreenCoords(stopPin.lat, stopPin.lng, RETICLE_ALT)
+        : null;
+      lines.forEach((line, i) => {
         const panel = panels[i];
-        if (!line) return;
-        if (!panel || behindHorizon(pin)) {
+        if (!screen || !panel) {
           line.style.visibility = "hidden";
           return;
         }
-        const screen = globe.getScreenCoords(pin.lat, pin.lng, RETICLE_ALT);
         const rect = panel.getBoundingClientRect();
-        // Panels live on the rail side, right of the map; the line
-        // leaves from their left edge, crosses the pane boundary, and
-        // lands on the pin's crosshair.
-        const ax = rect.left;
+        // The line leaves the panel on the side that faces its pin —
+        // out of the right edge when the panel sits left of the marker,
+        // out of the left when it sits right — runs a short horizontal
+        // stub, then breaks for the pin's crosshair.
+        const facingRight = screen.x >= rect.left + rect.width / 2;
+        const ax = facingRight ? rect.right : rect.left;
         const ay = rect.top + rect.height / 2;
+        const stub = facingRight ? ax + 26 : ax - 26;
         line.setAttribute(
           "points",
-          `${ax},${ay} ${ax - 26},${ay} ${screen.x},${screen.y}`,
+          `${ax},${ay} ${stub},${ay} ${screen.x},${screen.y}`,
         );
         line.style.visibility = "visible";
       });
     };
     frame = requestAnimationFrame(update);
     return () => cancelAnimationFrame(frame);
-  }, [ready, activePins, photoPins]);
+  }, [ready, activePins, stopPin, stopPanelCount]);
 
   // The South Pole easter egg: no chapter ever flies south of the
   // equator, so anyone looking at the pole dragged the globe there on
@@ -1114,14 +1136,16 @@ export default function GlobeScene({
           key={markerId ?? "none"}
           aria-hidden="true"
         >
-          {/* Lines wait for their panels to finish materializing. */}
-          {photoPins.map((pin, i) => (
-            <polyline
-              key={`${pin.lat},${pin.lng}`}
-              pathLength={1}
-              style={{ animationDelay: `${400 + i * 140}ms` }}
-            />
-          ))}
+          {/* Lines wait for their panels to finish materializing. Keyed
+           * per stop, so every arrival replays the draw. */}
+          {stopPin &&
+            Array.from({ length: stopPanelCount }, (_, i) => (
+              <polyline
+                key={`${stopPin.lat},${stopPin.lng},${i}`}
+                pathLength={1}
+                style={{ animationDelay: `${400 + i * 140}ms` }}
+              />
+            ))}
           {/* Waypoint reticles on every pin of the active chapter: a
            * diamond outline, four outer ticks, and a center dot. The
            * outer group takes the tracker's translate; the inner group

@@ -1,107 +1,102 @@
 import { useEffect, useState } from "react";
-import { chapters } from "../data/chapters";
+import { chapters, site } from "../data/chapters";
 import { formatCoordinate } from "../lib/coords";
 import { Decode } from "./Decode";
 
+/** The globe tour's current position: which chapter, and which of its
+ *  pins the camera has most recently locked onto. */
+export interface TourStop {
+  chapterId: string;
+  pinIndex: number;
+}
+
 interface Props {
-  activeId: string | null;
+  stop: TourStop | null;
   reducedMotion: boolean;
 }
 
 /** How long the outgoing panels linger to play their dematerialize
- *  before the next chapter's set keys in. Matches the globe overlay. */
+ *  before the next stop's set keys in. Matches the globe overlay. */
 const LEAVE_MS = 220;
 
 /**
- * Briefing-map photo callouts: for each pin of the active chapter that
- * has photos, a sat-photo panel — mono title bar, desaturated image,
- * data strip of real coordinates — pinned under the map pane's corner
- * tick. Panels materialize (wipe in) after their leader line draws; the
- * line itself lives in GlobeScene, tracking the pin's projected position
- * every frame. Pins without photos render nothing, so this stays
- * invisible until photo slots are filled. Desktop only; the mobile pane
- * is too small.
+ * Briefing-map photo callouts for the tour's current stop: one sat-photo
+ * panel per photo of the pin the camera just locked onto — mono title
+ * bar, data strip of real coordinates. A second photo of the same place
+ * gets its own panel headed by the "Ibid." label rather than repeating
+ * the city. Panels materialize (wipe in) as the camera arrives; moving
+ * on to the next pin swaps them for that location's set. The leader
+ * lines live in GlobeScene, tracking the pin's projected position every
+ * frame. Pins without photos render nothing. Desktop only; the mobile
+ * pane is too small.
  */
-export function PhotoCallouts({ activeId, reducedMotion }: Props) {
-  // Panels never blink out: on chapter change the outgoing set plays a
-  // short dematerialize (CSS `.leaving`), then the new chapter's panels
+export function PhotoCallouts({ stop, reducedMotion }: Props) {
+  // Panels never blink out: on a stop change the outgoing set plays a
+  // short dematerialize (CSS `.leaving`), then the new stop's panels
   // key in and materialize as usual.
-  const [view, setView] = useState<{ id: string | null; leaving: boolean }>({
-    id: activeId,
+  const [view, setView] = useState<{ stop: TourStop | null; leaving: boolean }>({
+    stop,
     leaving: false,
   });
   useEffect(() => {
-    if (view.id === activeId) return;
+    if (
+      view.stop?.chapterId === stop?.chapterId &&
+      view.stop?.pinIndex === stop?.pinIndex
+    )
+      return;
     if (reducedMotion) {
-      setView({ id: activeId, leaving: false });
+      setView({ stop, leaving: false });
       return;
     }
     setView((v) => (v.leaving ? v : { ...v, leaving: true }));
     const timer = window.setTimeout(
-      () => setView({ id: activeId, leaving: false }),
+      () => setView({ stop, leaving: false }),
       LEAVE_MS,
     );
     return () => window.clearTimeout(timer);
-  }, [activeId, view.id, reducedMotion]);
+  }, [stop, view.stop, reducedMotion]);
 
-  const chapter = chapters.find((ch) => ch.id === view.id);
-  if (!chapter) return null;
-  const withPhotos = chapter.pins
-    .filter((pin) => pin.photos && pin.photos.length > 0)
-    .slice(0, 2);
-  if (!withPhotos.length) return null;
+  const shown = view.stop;
+  const chapter = shown ? chapters.find((ch) => ch.id === shown.chapterId) : undefined;
+  const pin = chapter && shown ? chapter.pins[shown.pinIndex] : undefined;
+  const photos = (pin?.photos ?? []).filter((photo) => photo.src).slice(0, 2);
+  if (!chapter || !shown || !pin || photos.length === 0) return null;
 
   return (
     <aside
       className={view.leaving ? "photo-callouts leaving" : "photo-callouts"}
-      key={chapter.id}
+      key={`${chapter.id}:${shown.pinIndex}`}
       aria-label={chapter.title}
-    >
-      {withPhotos.map((pin) => {
-        const photos = (pin.photos ?? []).slice(0, 2);
-        const captions = photos.map((photo) => photo.caption).filter(Boolean);
-        return (
-          <figure
-            className="photo-callout"
-            key={`${pin.lat},${pin.lng}`}
-            // A placed panel leaves the default stack for its authored
-            // spot: top-left corner at (x% across, y% down) the screen,
-            // clamped so it can never hang off the viewport. It stops
-            // sizing from the stack container, so width comes along.
-            style={
-              pin.panel
-                ? {
-                    position: "fixed",
-                    left: `clamp(8px, ${pin.panel.x}vw, calc(100vw - min(230px, 22vw) - 8px))`,
-                    top: `clamp(8px, ${pin.panel.y}vh, calc(100vh - 160px))`,
-                    width: "min(230px, 22vw)",
-                  }
-                : undefined
+      // A placed pin moves the whole stack from the default corner to
+      // its authored spot: top-left at (x% across, y% down) the screen,
+      // clamped so it can never hang off the viewport.
+      style={
+        pin.panel
+          ? {
+              left: `clamp(8px, ${pin.panel.x}vw, calc(100vw - min(230px, 22vw) - 8px))`,
+              top: `clamp(8px, ${pin.panel.y}vh, calc(100vh - 160px))`,
+              right: "auto",
+              bottom: "auto",
             }
-          >
-            <figcaption className="photo-callout-title">
-              {/* Decodes as the panel materializes (fresh mount per
-               * chapter, so no pause gating needed). */}
-              <Decode text={pin.city} step={40} delay={240} />
-            </figcaption>
-            <div className="photo-callout-strip">
-              {photos.map((photo, i) => (
-                <img
-                  key={i}
-                  src={photo.src}
-                  alt={photo.caption ?? `${pin.city}, ${pin.country}`}
-                />
-              ))}
-            </div>
-            <p className="photo-callout-data">
-              {formatCoordinate(pin.lat, pin.lng)} · {pin.country.toUpperCase()}
-            </p>
-            {captions.length > 0 && (
-              <p className="photo-callout-caption">{captions.join(" · ")}</p>
-            )}
-          </figure>
-        );
-      })}
+          : undefined
+      }
+    >
+      {photos.map((photo, i) => (
+        <figure className="photo-callout" key={i}>
+          <figcaption className="photo-callout-title">
+            {/* Decodes as the panel materializes (fresh mount per stop,
+             * so no pause gating needed). */}
+            <Decode text={i === 0 ? pin.city : site.ibidLabel} step={40} delay={240} />
+          </figcaption>
+          <div className="photo-callout-strip">
+            <img src={photo.src} alt={photo.caption ?? `${pin.city}, ${pin.country}`} />
+          </div>
+          <p className="photo-callout-data">
+            {formatCoordinate(pin.lat, pin.lng)} · {pin.country.toUpperCase()}
+          </p>
+          {photo.caption && <p className="photo-callout-caption">{photo.caption}</p>}
+        </figure>
+      ))}
     </aside>
   );
 }
