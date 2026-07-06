@@ -48,6 +48,7 @@ interface GlobeControls {
 const LAND_TILES_URL = "/geo/land-tiles.geojson";
 const COAST_RINGS_URL = "/geo/land-rings.json";
 const BORDERS_URL = "/geo/land-borders.json";
+const TERRAIN_URL = "/geo/terrain.json";
 
 /** Opening view: wide over Asia, where five of the six chapters happened. */
 const HERO_POV = { lat: 26, lng: 106, altitude: 2.4 };
@@ -59,9 +60,11 @@ const FLIGHT_DEBOUNCE_MS = 160;
  *  crossings don't whip. */
 const TOUR_LEG_MS = 1900;
 const TOUR_DWELL_MS = 400;
-/** Mid-leg climb per radian of leg length: long crossings rise for
- *  context, neighboring cities stay low. */
-const TOUR_CLIMB = 0.45;
+/** Mid-leg climb per radian² of leg length. Quadratic, so regional hops
+ *  barely change altitude at all and only ocean crossings truly rise. */
+const TOUR_CLIMB = 0.25;
+/** The finale: pull back until the whole journey fits in frame. */
+const TOUR_OVERVIEW_MS = 1800;
 /** The "down to earth" plunge. */
 const DIVE_MS = 900;
 const DIVE_ALTITUDE = 0.03;
@@ -81,15 +84,18 @@ interface LandPolygon {
   type: "Feature";
   properties: Record<string, unknown>;
   geometry: { type: "Polygon"; coordinates: number[][][] };
+  /** Lakes: filled with the ocean wash instead of land white. */
+  water?: boolean;
 }
 
-/** A run of [lng, lat] points: a coastline ring or a country border. */
+/** A run of [lng, lat] points: a coastline, border, or river. */
 type LineRun = number[][];
 
-/** Path-layer datum: coastlines draw stronger than interior borders. */
+/** Path-layer datum: coasts and lake shores draw strongest, interior
+ *  borders a step quieter, rivers in a pale accent. */
 interface PathDatum {
   points: LineRun;
-  border: boolean;
+  kind: "coast" | "border" | "river";
 }
 
 const tileVertices = (tile: LandPolygon) =>
@@ -105,10 +111,13 @@ const tileVertices = (tile: LandPolygon) =>
 const TILE_CHUNK_VERTICES = 1500;
 const RING_CHUNK_POINTS = 4000;
 
-// Stable accessors for the coastline/border path layer.
+// Stable accessors for the coastline/border/river path layer.
 const PATH_POINTS = (datum: object) => (datum as PathDatum).points;
 const PATH_POINT_LAT = (point: object) => (point as number[])[1];
 const PATH_POINT_LNG = (point: object) => (point as number[])[0];
+// Land caps at 0.007, lake fills at 0.0075, all lines at 0.008.
+const POLYGON_ALTITUDE = (polygon: object) =>
+  (polygon as LandPolygon).water ? 0.0075 : 0.007;
 
 /** three-globe's internal globe radius. */
 const GLOBE_RADIUS = 100;
@@ -203,6 +212,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
     const accent = cssToken("--accent");
     const coast = withAlpha(text, 0.4);
     const border = withAlpha(text, 0.22);
+    const river = withAlpha(accent, 0.3);
     return {
       accent,
       ground: cssToken("--ground"),
@@ -211,8 +221,10 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
       // plain string as a property name — colors there must be functions.
       // Memoized once, so layers never re-digest over accessor identity.
       // Interior borders sit a step quieter than coastlines.
-      pathColorAccessor: (datum: object) =>
-        (datum as PathDatum).border ? border : coast,
+      pathColorAccessor: (datum: object) => {
+        const kind = (datum as PathDatum).kind;
+        return kind === "border" ? border : kind === "river" ? river : coast;
+      },
       pinDim: withAlpha(accent, INACTIVE_PIN_OPACITY),
       transparent: withAlpha(cssToken("--ground"), 0),
     };
@@ -231,6 +243,16 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
     () => clipBehindHorizon(new MeshBasicMaterial({ color: palette.ground })),
     [palette],
   );
+  // Lakes reuse the ocean wash, floated just above the land caps.
+  const lakeMaterial = useMemo(
+    () => clipBehindHorizon(new MeshBasicMaterial({ color: palette.wash })),
+    [palette],
+  );
+  const capMaterialAccessor = useMemo(
+    () => (polygon: object) =>
+      (polygon as LandPolygon).water ? lakeMaterial : landMaterial,
+    [lakeMaterial, landMaterial],
+  );
 
   // Land tiles, coastline rings, and country borders, fetched from this
   // origin and streamed onto the globe in frame-sized chunks. Each step
@@ -248,41 +270,69 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
       fetchJson(LAND_TILES_URL),
       fetchJson(COAST_RINGS_URL),
       fetchJson(BORDERS_URL),
+      fetchJson(TERRAIN_URL),
     ]).then(
-      ([tilesGeo, ringsData, bordersData]: [
+      ([tilesGeo, ringsData, bordersData, terrainData]: [
         { features?: LandPolygon[] } | null,
         { rings?: LineRun[] } | null,
         { borders?: LineRun[] } | null,
+        { lakes?: number[][][][]; lakeRings?: LineRun[]; rivers?: LineRun[] } | null,
       ]) => {
         if (cancelled) return;
         const tiles = (tilesGeo?.features ?? [])
           .slice()
           .sort((a, b) => tileVertices(b) - tileVertices(a));
+        // Lakes stream after the land they sit on.
+        const polys: LandPolygon[] = [
+          ...tiles,
+          ...(terrainData?.lakes ?? []).map(
+            (coordinates): LandPolygon => ({
+              type: "Feature",
+              properties: {},
+              geometry: { type: "Polygon", coordinates },
+              water: true,
+            }),
+          ),
+        ];
         const lines: PathDatum[] = [
-          ...(ringsData?.rings ?? []).map((points) => ({ points, border: false })),
-          ...(bordersData?.borders ?? []).map((points) => ({ points, border: true })),
+          ...(ringsData?.rings ?? []).map((points): PathDatum => ({ points, kind: "coast" })),
+          ...(bordersData?.borders ?? []).map((points): PathDatum => ({ points, kind: "border" })),
+          ...(terrainData?.lakeRings ?? []).map((points): PathDatum => ({ points, kind: "coast" })),
+          ...(terrainData?.rivers ?? []).map((points): PathDatum => ({ points, kind: "river" })),
         ];
 
-        // One state update per plan step; caps first, then the lines.
+        // One state update per plan step. Order is the page's visual
+        // priority: land, then coastlines and borders (the map reads from
+        // these), then the terrain garnish — lakes, shores, rivers.
         const plan: (() => void)[] = [];
-        let budget = 0;
-        tiles.forEach((tile, i) => {
-          budget += tileVertices(tile);
-          if (budget >= TILE_CHUNK_VERTICES || i === tiles.length - 1) {
-            const upTo = i + 1;
-            plan.push(() => setLand(tiles.slice(0, upTo)));
-            budget = 0;
+        const planPolySlices = (from: number, to: number) => {
+          let budget = 0;
+          for (let i = from; i < to; i++) {
+            budget += tileVertices(polys[i]);
+            if (budget >= TILE_CHUNK_VERTICES || i === to - 1) {
+              const upTo = i + 1;
+              plan.push(() => setLand(polys.slice(0, upTo)));
+              budget = 0;
+            }
           }
-        });
-        budget = 0;
-        lines.forEach((line, i) => {
-          budget += line.points.length;
-          if (budget >= RING_CHUNK_POINTS || i === lines.length - 1) {
-            const upTo = i + 1;
-            plan.push(() => setPaths(lines.slice(0, upTo)));
-            budget = 0;
+        };
+        const planLineSlices = (from: number, to: number) => {
+          let budget = 0;
+          for (let i = from; i < to; i++) {
+            budget += lines[i].points.length;
+            if (budget >= RING_CHUNK_POINTS || i === to - 1) {
+              const upTo = i + 1;
+              plan.push(() => setPaths(lines.slice(0, upTo)));
+              budget = 0;
+            }
           }
-        });
+        };
+        const baseLineCount =
+          (ringsData?.rings?.length ?? 0) + (bordersData?.borders?.length ?? 0);
+        planPolySlices(0, tiles.length);
+        planLineSlices(0, baseLineCount);
+        planPolySlices(tiles.length, polys.length);
+        planLineSlices(baseLineCount, lines.length);
         // Final step, one frame after the last chunk has committed: give
         // every line the horizon clip. three-globe stamps each datum with
         // its THREE object, and with stable accessors it never rebuilds
@@ -467,7 +517,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           {
             lat: Math.asin(z / len) / RAD,
             lng: Math.atan2(y, x) / RAD,
-            altitude: altitude + omega * TOUR_CLIMB * climbProfile(e),
+            altitude: altitude + omega * omega * TOUR_CLIMB * climbProfile(e),
           },
           0,
         );
@@ -499,7 +549,25 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           FLIGHT_MS,
         );
         const tourFrom = (i: number) => {
-          if (i + 1 >= chapter.pins.length) return;
+          if (i + 1 >= chapter.pins.length) {
+            // The finale: after the last stop, pull back just far enough
+            // that the whole journey — every pin and arc — is in frame.
+            if (chapter.pins.length > 1) {
+              timers.push(
+                window.setTimeout(() => {
+                  const g = globeRef.current;
+                  if (!g) return;
+                  const overview = chapterOverview(chapter);
+                  const ref = (g.pointOfView() as { lng: number }).lng;
+                  g.pointOfView(
+                    { ...overview, lng: nearestLng(overview.lng, ref) },
+                    TOUR_OVERVIEW_MS,
+                  );
+                }, TOUR_DWELL_MS),
+              );
+            }
+            return;
+          }
           timers.push(
             window.setTimeout(
               () =>
@@ -556,13 +624,14 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           atmosphereColor={palette.accent}
           atmosphereAltitude={0.12}
           polygonsData={land}
-          polygonCapMaterial={landMaterial}
+          polygonCapMaterial={capMaterialAccessor}
           polygonSideColor={NO_SIDE_COLOR}
           // Altitude must exceed the chord sag of the curvature grid, or
           // the ocean sphere pokes through tile interiors. The grid is a
           // sparse spiral, so 5° keeps worst-case interior spans well
-          // under the sag budget (10° left dipping patches).
-          polygonAltitude={0.007}
+          // under the sag budget (10° left dipping patches). Lakes float
+          // between the land caps and the 0.008 line layer.
+          polygonAltitude={POLYGON_ALTITUDE}
           polygonCapCurvatureResolution={5}
           polygonsTransitionDuration={0}
           // Coastlines drawn from the original untiled rings, floating just
