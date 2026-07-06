@@ -73,7 +73,7 @@ const IDLE_ROTATE_SPEED = 0.35;
 const ARC_ENTER_MS = 700;
 const PIN_ENTER_MS = 500;
 /** The briefing-map graticule: faint electric grid over the whole map. */
-const GRID_OPACITY = 0.15;
+const GRID_OPACITY = 0.18;
 
 // Stable identity matters: a new accessor function per render would make
 // three-globe tear down and re-tessellate every land polygon. A null side
@@ -131,6 +131,10 @@ const LINE_ALTITUDE = 0.012;
 /** three-globe's internal globe radius. */
 const GLOBE_RADIUS = 100;
 
+/** Briefing-map stipple: land brightens on a ~2° dot grid. */
+const STIPPLE_CELLS_PER_RAD = 28.65; /* 57.296 deg/rad ÷ 2 deg cells */
+const STIPPLE_BOOST = 0.6;
+
 /**
  * Land and coastlines float slightly above the ocean sphere, so a band of
  * the far side (~sqrt(2·altitude) radians wide) stays geometrically
@@ -138,9 +142,14 @@ const GLOBE_RADIUS = 100;
  * no winding or culling can prevent that. Discard fragments that lie
  * beyond the globe's horizon from the camera instead; the small cosine
  * slack keeps the clip from nibbling geometry right at the limb.
+ *
+ * With `stipple`, the fragment shader also lifts the material color on a
+ * spherical dot grid — the briefing map's dot-matrix landmass — reusing
+ * the same varying, so texture comes at zero geometry cost.
  */
 function clipBehindHorizon<T extends { onBeforeCompile: unknown; customProgramCacheKey?: unknown }>(
   material: T,
+  stipple = false,
 ): T {
   (material as { onBeforeCompile: (shader: { vertexShader: string; fragmentShader: string }) => void }).onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
@@ -155,9 +164,18 @@ function clipBehindHorizon<T extends { onBeforeCompile: unknown; customProgramCa
         "void main() {",
         `void main() {\n\tif (dot(normalize(vGlobePos), normalize(cameraPosition)) < ${GLOBE_RADIUS.toFixed(1)} / length(cameraPosition) - 0.005) discard;`,
       );
+    if (stipple) {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        "#include <opaque_fragment>",
+        `vec3 spN = normalize(vGlobePos);
+\tvec2 spCell = fract(vec2(atan(spN.z, spN.x), asin(clamp(spN.y, -1.0, 1.0))) * ${STIPPLE_CELLS_PER_RAD.toFixed(2)}) - 0.5;
+\toutgoingLight *= 1.0 + ${STIPPLE_BOOST.toFixed(2)} * (1.0 - smoothstep(0.2, 0.3, length(spCell)));
+\t#include <opaque_fragment>`,
+      );
+    }
   };
   (material as { customProgramCacheKey: () => string }).customProgramCacheKey = () =>
-    "horizon-clip";
+    stipple ? "horizon-clip-stipple" : "horizon-clip";
   return material;
 }
 
@@ -237,7 +255,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
       pathColorAccessor: (datum: object) =>
         (datum as PathDatum).kind === "border" ? border : coast,
       // Radar rings fade as they propagate outward.
-      ringColorAccessor: () => (t: number) => withAlpha(ring, 0.4 * (1 - t)),
+      ringColorAccessor: () => (t: number) => withAlpha(ring, 0.5 * (1 - t)),
     };
   }, []);
 
@@ -251,7 +269,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
   // clockwise-exterior convention, so all caps face outward uniformly.
   // The horizon clip removes the far-side band that floats past the limb.
   const landMaterial = useMemo(
-    () => clipBehindHorizon(new MeshBasicMaterial({ color: palette.land })),
+    () => clipBehindHorizon(new MeshBasicMaterial({ color: palette.land }), true),
     [palette],
   );
   // Lakes reuse the midnight ocean, floated just above the land caps.
@@ -662,7 +680,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           backgroundColor={palette.bg}
           globeMaterial={globeMaterial}
           atmosphereColor={palette.accent}
-          atmosphereAltitude={0.12}
+          atmosphereAltitude={0.1}
           polygonsData={land}
           polygonCapMaterial={capMaterialAccessor}
           polygonSideColor={NO_SIDE_COLOR}
@@ -699,6 +717,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           arcEndLng={(d) => (d as ArcDatum).endLng}
           arcColor={() => palette.accent}
           arcStroke={0.45}
+          arcAltitudeAutoScale={0.3}
           arcDashLength={reducedMotion ? 1 : 0.25}
           arcDashGap={reducedMotion ? 0 : 0.35}
           arcDashAnimateTime={reducedMotion ? 0 : 1200}
@@ -706,9 +725,9 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           showGraticules={true}
           ringsData={rings}
           ringColor={palette.ringColorAccessor}
-          ringMaxRadius={4}
-          ringPropagationSpeed={1.2}
-          ringRepeatPeriod={1500}
+          ringMaxRadius={9}
+          ringPropagationSpeed={1.6}
+          ringRepeatPeriod={1100}
           ringAltitude={0.0135}
           onZoom={handleZoom}
           rendererConfig={{ antialias: true, alpha: true }}

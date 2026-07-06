@@ -190,22 +190,55 @@ button {
   z-index: 2;
 }
 
+/* Briefing-frame corner ticks on the map pane. */
+.globe-pane::before,
+.globe-pane::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  width: 18px;
+  height: 18px;
+  border-left: 1px solid var(--hairline);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.globe-pane::before {
+  top: 14px;
+  border-top: 1px solid var(--hairline);
+}
+
+.globe-pane::after {
+  bottom: 14px;
+  border-bottom: 1px solid var(--hairline);
+}
+
 .globe-canvas {
   position: absolute;
   inset: 0;
 }
 
-/* Flight-instrument readout: live camera coordinates + altitude. */
+/* Flight-instrument readout: live camera coordinates + altitude, framed
+ * as a briefing-map data callout. */
 .globe-hud {
   position: absolute;
   right: clamp(16px, 2vw, 28px);
   bottom: 20px;
   z-index: 5;
+  padding: 6px 10px;
   font-family: var(--font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.06em;
-  color: var(--muted);
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-left: 2px solid var(--accent);
   pointer-events: none;
+}
+
+/* No box until the first readout arrives. */
+.globe-hud:empty {
+  display: none;
 }
 
 .globe-placeholder {

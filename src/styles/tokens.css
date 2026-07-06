@@ -24,7 +24,7 @@
   /* Globe layers (read at runtime by the Three.js scene). Briefing-map
    * look: land barely lifts off the ocean — the glowing outlines carry
    * the map. */
-  --globe-ocean: #0a1730; /* sphere base — a step above --bg so it reads */
+  --globe-ocean: #091426; /* sphere base — a step above --bg so it reads */
   --globe-land: #0d1a33; /* landmass fill, a whisper above the ocean */
 
   /* Type — the original two families */
