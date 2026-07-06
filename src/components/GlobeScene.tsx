@@ -115,9 +115,17 @@ const RING_CHUNK_POINTS = 4000;
 const PATH_POINTS = (datum: object) => (datum as PathDatum).points;
 const PATH_POINT_LAT = (point: object) => (point as number[])[1];
 const PATH_POINT_LNG = (point: object) => (point as number[])[0];
-// Land caps at 0.007, lake fills at 0.0075, all lines at 0.008.
+// Layer altitudes: land 0.007, lake fills 0.010, lines 0.012. The gaps
+// are sized to real error budgets, not taste: lakes are perimeter-only
+// triangulations (too small for the 5° interior grid), so Lake Superior's
+// widest triangles sag ~0.0006·R below the lake shell — a smaller gap
+// lets exactly-at-shell land vertices (the 15° tile edge at 90°W crosses
+// Superior) poke white through the fill. And at hero distance one depth-
+// buffer LSB is ~0.0007·R, so sub-LSB gaps would z-fight; these gaps keep
+// every pair of layers several LSBs apart.
 const POLYGON_ALTITUDE = (polygon: object) =>
-  (polygon as LandPolygon).water ? 0.0075 : 0.007;
+  (polygon as LandPolygon).water ? 0.01 : 0.007;
+const LINE_ALTITUDE = 0.012;
 
 /** three-globe's internal globe radius. */
 const GLOBE_RADIUS = 100;
@@ -626,7 +634,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           // the ocean sphere pokes through tile interiors. The grid is a
           // sparse spiral, so 5° keeps worst-case interior spans well
           // under the sag budget (10° left dipping patches). Lakes float
-          // between the land caps and the 0.008 line layer.
+          // above the land caps, below the line layer.
           polygonAltitude={POLYGON_ALTITUDE}
           polygonCapCurvatureResolution={5}
           polygonsTransitionDuration={0}
@@ -637,7 +645,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           pathPointLat={PATH_POINT_LAT}
           pathPointLng={PATH_POINT_LNG}
           pathColor={palette.pathColorAccessor}
-          pathPointAlt={0.008}
+          pathPointAlt={LINE_ALTITUDE}
           pathTransitionDuration={0}
           pointsData={points}
           pointLat={(d) => (d as PointDatum).lat}
