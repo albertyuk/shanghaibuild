@@ -260,6 +260,97 @@ button.ghost.danger:hover:not(:disabled) {
   border-color: var(--accent);
 }
 
+/* ---------- Photo preview page ----------
+ * Mirrors the site's .photo-callout styling (global.css) at its exact
+ * on-site width, laid out in-flow so every chapter's panels are visible
+ * at once. */
+
+.preview-page .editor-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.preview-chapter {
+  margin-top: 36px;
+}
+
+.preview-chapter h2 {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+
+.preview-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.photo-callout {
+  margin: 0;
+  width: 230px;
+  padding: 8px;
+  background: var(--bg);
+  border: 1px solid var(--hairline);
+  border-left: 2px solid var(--accent);
+}
+
+.photo-callout-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 7px;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.photo-callout-coords {
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.photo-callout-strip {
+  display: flex;
+  gap: 6px;
+}
+
+.photo-callout img {
+  display: block;
+  flex: 1 1 0;
+  min-width: 0;
+  width: 100%;
+  border: 1px solid var(--hairline);
+  filter: saturate(0.25) contrast(1.05);
+}
+
+.photo-callout-caption {
+  margin: 7px 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.preview-pending {
+  margin: 7px 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  color: var(--accent-hot);
+}
+
 .publish-log {
   list-style: none;
   margin: 14px 0 0;

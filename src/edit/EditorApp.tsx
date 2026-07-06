@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { chapters as sourceChapters, site as sourceSite } from "../data/chapters";
+import { formatCoordinate } from "../lib/coords";
 import type { EditableChapter, SiteContent } from "./types";
 import { generateChaptersTs } from "./generate";
 import { MapPicker } from "./MapPicker";
@@ -93,6 +94,7 @@ export function EditorApp() {
   const [ghBranch, setGhBranch] = useState("claude/albert-yuk-portfolio-3zs6lb");
   const [publishing, setPublishing] = useState(false);
   const [publishLog, setPublishLog] = useState<string[]>([]);
+  const [previewing, setPreviewing] = useState(false);
 
   const errors = useMemo(() => validate(chapters, site), [chapters, site]);
   const output = useMemo(
@@ -262,6 +264,83 @@ export function EditorApp() {
           {wrongPass && <p className="gate-error">Wrong password.</p>}
           <button type="submit">Unlock</button>
         </form>
+      </div>
+    );
+  }
+
+  if (previewing) {
+    const withAnyPhotos = chapters
+      .map((chapter, i) => ({
+        chapter,
+        num: String(i + 1).padStart(2, "0"),
+        pins: chapter.pins.filter((pin) =>
+          (pin.photos ?? []).some((photo) => photo.src.trim()),
+        ),
+      }))
+      .filter((entry) => entry.pins.length > 0);
+    return (
+      <div className="editor preview-page">
+        <header className="editor-head">
+          <h1>Photo preview</h1>
+          <p className="editor-note">
+            Each panel below appears pinned to the map pane's top-left while its
+            chapter is active — exactly this size, frame, and photo treatment.
+            Nothing here is deployed yet.
+          </p>
+          <button type="button" onClick={() => setPreviewing(false)}>
+            Back to editor
+          </button>
+        </header>
+        {withAnyPhotos.length === 0 && (
+          <p className="editor-note">No photo slots filled yet.</p>
+        )}
+        {withAnyPhotos.map(({ chapter, num, pins }) => (
+          <section className="preview-chapter" key={chapter.id}>
+            <h2>
+              {num} · {chapter.title || "(untitled)"}
+            </h2>
+            <div className="preview-row">
+              {pins.map((pin, p) => {
+                const photos = (pin.photos ?? [])
+                  .filter((photo) => photo.src.trim())
+                  .slice(0, 2);
+                const captions = photos.map((photo) => photo.caption).filter(Boolean);
+                const pendingUpload = photos.some(
+                  (photo) =>
+                    photo.src.startsWith("/photos/") &&
+                    !dropped[photo.src.replace(/^\/photos\//, "")],
+                );
+                return (
+                  <figure className="photo-callout" key={p}>
+                    <figcaption className="photo-callout-title">
+                      <span className="photo-callout-place">{pin.city}</span>
+                      <span className="photo-callout-coords">
+                        {formatCoordinate(pin.lat, pin.lng)}
+                      </span>
+                    </figcaption>
+                    <div className="photo-callout-strip">
+                      {photos.map((photo, j) => (
+                        <img
+                          key={j}
+                          src={previewFor(photo.src) ?? photo.src}
+                          alt={photo.caption ?? pin.city}
+                        />
+                      ))}
+                    </div>
+                    {captions.length > 0 && (
+                      <p className="photo-callout-caption">{captions.join(" · ")}</p>
+                    )}
+                    {pendingUpload && (
+                      <p className="preview-pending">
+                        file not on the site yet — publish or commit it
+                      </p>
+                    )}
+                  </figure>
+                );
+              })}
+            </div>
+          </section>
+        ))}
       </div>
     );
   }
@@ -612,6 +691,9 @@ export function EditorApp() {
           </p>
         )}
         <div className="row">
+          <button type="button" className="ghost" onClick={() => setPreviewing(true)}>
+            Preview photos
+          </button>
           <button type="button" disabled={errors.length > 0} onClick={download}>
             Download chapters.ts
           </button>
