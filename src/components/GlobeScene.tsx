@@ -57,8 +57,8 @@ const FLIGHT_DEBOUNCE_MS = 160;
 /** Multi-pin chapters tour their pins: fly, dwell, fly on. A leg's
  *  duration grows with its length, so short hops don't crawl and ocean
  *  crossings don't whip. */
-const TOUR_LEG_MS = 1600;
-const TOUR_DWELL_MS = 700;
+const TOUR_LEG_MS = 1900;
+const TOUR_DWELL_MS = 400;
 /** Mid-leg climb per radian of leg length: long crossings rise for
  *  context, neighboring cities stay low. */
 const TOUR_CLIMB = 0.45;
