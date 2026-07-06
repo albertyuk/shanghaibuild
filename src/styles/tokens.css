@@ -1,23 +1,51 @@
 /*
- * Design tokens — the single source of truth for color, type, and layout
- * constants. No component and no other stylesheet may declare a raw color
- * value; everything reads these variables (components read them at runtime
- * via getComputedStyle where Three.js needs color strings).
+ * Design tokens — the single source of truth for color, type, motion, and
+ * layout constants. No component and no other stylesheet may declare a raw
+ * color value; everything reads these variables (components read them at
+ * runtime via getComputedStyle where Three.js needs color strings).
+ *
+ * Theme: "Dark Hour Atlas" — the same field atlas at midnight. Abyss-navy
+ * ground, blue-tinted white ink, one electric-blue accent. Deep midnight
+ * blue + white + electric cyan only.
  */
 :root {
-  /* Palette — white ground, deep-navy text, one blue accent */
-  --ground: #FFFFFF; /* page ground */
-  --text: #14284B; /* primary text: deep navy */
-  --accent: #1D4ED8; /* single accent — active pins, arcs, active nav item, links only */
-  --dim: rgba(20, 40, 75, 0.62); /* secondary text */
-  --hairline: rgba(20, 40, 75, 0.14); /* rules */
-  --wash: #DCE8F7; /* pale blue: globe ocean + placeholder disc */
+  /* Palette */
+  --bg: #050b18; /* page ground: abyss navy */
+  --surface: #0c1830; /* lifted panels: mobile nav bar, skip link */
+  --ink: #eaf2ff; /* headings: blue-tinted white */
+  --ink-body: rgba(234, 242, 255, 0.9); /* body copy: ink at 90% */
+  --muted: #7c8db0; /* secondary text */
+  --accent: #2ea8ff; /* electric blue — pins, arcs, active nav, links */
+  --accent-hot: #9bd9ff; /* hover flash, focus rings, active marker */
+  --accent-ink: #041020; /* text set on accent fills */
+  --hairline: rgba(160, 190, 255, 0.16); /* rules */
+  --halftone-dot: rgba(46, 168, 255, 0.03); /* chapter-list strip texture */
 
-  /* Type — two families, no more */
-  --font-serif: "EB Garamond", Georgia, "Times New Roman", serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* Globe layers (read at runtime by the Three.js scene) */
+  --globe-ocean: #0a1730; /* sphere base — a step above --bg so it reads */
+  --globe-land: #10203e; /* landmass fill under the wireframe lines */
+
+  /* Type — three families, three jobs */
+  --font-display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --font-body: "Inter", system-ui, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Motion — fast and slippery, with a spring for hovers */
+  --ease-slip: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* The signature angle. Inner text always counter-skews. */
+  --skew: -10deg;
+  --unskew: 10deg;
 
   /* Layout constants */
   --globe-width-desktop: 60vw;
   --globe-height-mobile: 45vh;
+}
+
+@media (max-width: 480px) {
+  :root {
+    --skew: -6deg;
+    --unskew: 6deg;
+  }
 }

@@ -1,6 +1,10 @@
 /*
  * Layout and typography. Every color in this file is a token from
  * tokens.css — no raw color values outside that file.
+ *
+ * Dark Hour rules of engagement: the Persona energy lives in the chrome
+ * (nav, numerals, button, hovers); body text stays quiet and readable.
+ * Signature angle is var(--skew); inner text always counter-skews.
  */
 
 *,
@@ -10,8 +14,10 @@
 }
 
 html {
-  background: var(--ground);
-  color-scheme: light;
+  background: var(--bg);
+  color-scheme: dark;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) var(--bg);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -22,18 +28,29 @@ html {
 
 body {
   margin: 0;
-  background: var(--ground);
-  color: var(--text);
-  font-family: var(--font-serif);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
   font-size: 17px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Text color, not accent: the accent is reserved for pins, arcs, active nav, links. */
 ::selection {
-  background: var(--text);
-  color: var(--ground);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent);
 }
 
 a {
@@ -41,15 +58,19 @@ a {
   text-decoration-thickness: 1px;
   text-decoration-color: var(--hairline);
   text-underline-offset: 3px;
+  transition:
+    color 200ms var(--ease-slip),
+    text-decoration-color 200ms var(--ease-slip);
 }
 
 a:hover {
-  text-decoration-color: var(--accent);
+  color: var(--accent-hot);
+  text-decoration-color: var(--accent-hot);
 }
 
 :focus-visible {
-  outline: 2px solid var(--text);
-  outline-offset: 3px;
+  outline: 2px solid var(--accent-hot);
+  outline-offset: 2px;
 }
 
 button {
@@ -67,8 +88,8 @@ button {
   left: 14px;
   z-index: 50;
   padding: 8px 14px;
-  background: var(--ground);
-  color: var(--text);
+  background: var(--surface);
+  color: var(--ink);
   border: 1px solid var(--hairline);
   font-family: var(--font-mono);
   font-size: 0.75rem;
@@ -81,29 +102,59 @@ button {
 
 /* ---------- "Down to earth" toggle ---------- */
 
+/* The P3 button: a parallelogram with one clipped corner, hairline at
+ * rest, filling electric blue on hover. Inner label counter-skews. */
 .earth-toggle {
   position: fixed;
   top: clamp(16px, 2vw, 28px);
   right: clamp(16px, 2vw, 28px);
   z-index: 20;
-  padding: 7px 12px;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
+  padding: 8px 16px;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--dim);
-  background: var(--ground);
+  color: var(--ink);
+  background: transparent;
   border: 1px solid var(--hairline);
+  transform: skewX(var(--skew));
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 14px),
+    calc(100% - 14px) 100%,
+    0 100%
+  );
+  transition:
+    background 220ms var(--ease-spring),
+    color 220ms var(--ease-slip),
+    border-color 220ms var(--ease-slip),
+    transform 180ms var(--ease-slip);
 }
 
-.earth-toggle:hover {
-  color: var(--text);
-  border-color: var(--dim);
+.earth-toggle-label {
+  display: inline-block;
+  transform: skewX(var(--unskew));
+}
+
+@media (hover: hover) {
+  .earth-toggle:hover:not(:disabled) {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+}
+
+/* Nudge along the skew axis. */
+.earth-toggle:active:not(:disabled) {
+  transform: skewX(var(--skew)) translateX(3px);
 }
 
 .earth-toggle:disabled {
   cursor: default;
-  color: var(--hairline);
+  color: var(--muted);
 }
 
 /* ---------- Globe pane ---------- */
@@ -115,7 +166,7 @@ button {
   width: var(--globe-width-desktop);
   height: 100vh;
   overflow: hidden;
-  background: var(--ground);
+  background: var(--bg);
   z-index: 2;
 }
 
@@ -133,14 +184,14 @@ button {
   font-family: var(--font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.06em;
-  color: var(--dim);
+  color: var(--muted);
   pointer-events: none;
 }
 
 .globe-placeholder {
   position: absolute;
   inset: 0;
-  background: var(--ground);
+  background: var(--bg);
   display: grid;
   place-items: center;
 }
@@ -149,7 +200,7 @@ button {
   width: min(72%, 78vh);
   aspect-ratio: 1;
   border-radius: 50%;
-  background: var(--wash);
+  background: var(--globe-ocean);
   border: 1px solid var(--hairline);
 }
 
@@ -207,22 +258,26 @@ button {
   font-size: 0.72rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--dim);
+  color: var(--muted);
 }
 
 .hero h1 {
   margin: 0;
-  font-weight: 500;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 700;
+  text-transform: uppercase;
   font-size: clamp(3rem, 6vw, 4.6rem);
   line-height: 1.02;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.02em;
+  color: var(--ink);
 }
 
 .hero-identity {
   margin: 0;
   font-size: clamp(1.05rem, 1.5vw, 1.3rem);
-  line-height: 1.5;
-  color: var(--dim);
+  line-height: 1.6;
+  color: var(--ink-body);
   max-width: 30rem;
 }
 
@@ -235,7 +290,7 @@ button {
   font-size: 0.7rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--dim);
+  color: var(--muted);
 }
 
 /* ---------- About ---------- */
@@ -244,7 +299,7 @@ button {
   margin: 0;
   padding: 40px 0 56px;
   border-top: 1px solid var(--hairline);
-  color: var(--dim);
+  color: var(--muted);
   font-size: 1.02rem;
   max-width: 34rem;
 }
@@ -259,15 +314,60 @@ button {
   justify-content: center;
   align-items: flex-start;
   padding: 96px 0;
-  border-top: 1px solid var(--hairline);
+  position: relative;
 }
 
+/* The panel's top rule, tilted to the Dark Hour angle. */
+.chapter::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: min(60%, 20rem);
+  height: 1px;
+  background: var(--hairline);
+  transform: rotate(-3deg);
+  transform-origin: left center;
+}
+
+/* The P3 date-block: a big condensed-italic numeral behind an accent
+ * slash. One of the two sanctioned skewed elements outside the chrome. */
 .chapter-num {
-  margin: 0 0 14px;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.12em;
-  color: var(--dim);
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 700;
+  font-size: 2.6rem;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+
+.chapter-num::before {
+  content: "";
+  width: 3px;
+  height: 2.2rem;
+  background: var(--accent);
+  transform: skewX(var(--skew));
+}
+
+/* Moon phase, new moon at 01 waxing to full at 06. */
+.moon-glyph {
+  width: 15px;
+  height: 15px;
+}
+
+.moon-glyph circle {
+  fill: none;
+  stroke: var(--hairline);
+  stroke-width: 1.5;
+}
+
+.moon-glyph path {
+  fill: var(--accent);
 }
 
 .eyebrow {
@@ -280,10 +380,14 @@ button {
 
 .chapter h2 {
   margin: 0 0 12px;
-  font-weight: 500;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 700;
+  text-transform: uppercase;
   font-size: clamp(1.7rem, 2.4vw, 2.2rem);
   line-height: 1.12;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.02em;
+  color: var(--ink);
 }
 
 .chapter-meta {
@@ -291,7 +395,7 @@ button {
   font-family: var(--font-mono);
   font-size: 0.76rem;
   line-height: 1.7;
-  color: var(--dim);
+  color: var(--muted);
   max-width: 34rem;
 }
 
@@ -299,14 +403,45 @@ button {
   margin: 0;
   max-width: 33rem;
   font-size: 1.05rem;
+  color: var(--ink-body);
 }
 
+/* External link: quiet mono at rest; an angled underline sweeps in from
+ * the left on hover and the arrow nudges out along it. */
 .chapter-link {
+  position: relative;
   display: inline-block;
   margin-top: 26px;
   font-family: var(--font-mono);
   font-size: 0.76rem;
   letter-spacing: 0.04em;
+  text-decoration: none;
+}
+
+.chapter-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 100%;
+  height: 2px;
+  background: var(--accent);
+  transform: skewX(var(--skew)) scaleX(0);
+  transform-origin: left center;
+  transition: transform 240ms var(--ease-slip);
+}
+
+.chapter-link:hover::after {
+  transform: skewX(var(--skew)) scaleX(1);
+}
+
+.link-arrow {
+  display: inline-block;
+  transition: transform 240ms var(--ease-spring);
+}
+
+.chapter-link:hover .link-arrow {
+  transform: translate(3px, -2px);
 }
 
 /* ---------- Footer ---------- */
@@ -327,7 +462,7 @@ button {
   font-size: 0.72rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--dim);
+  color: var(--muted);
 }
 
 .footer-links {
@@ -346,7 +481,7 @@ button {
 
 .footer-note {
   margin: 12px 0 0;
-  color: var(--dim);
+  color: var(--muted);
   font-size: 0.95rem;
   max-width: 30rem;
 }
@@ -360,7 +495,7 @@ button {
   z-index: 10;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .index-item {
@@ -371,19 +506,59 @@ button {
   font-size: 0.68rem;
   letter-spacing: 0.05em;
   text-align: left;
-  color: var(--dim);
-  padding: 2px 0;
+  color: var(--muted);
+  padding: 4px 10px;
+  position: relative;
+  transition:
+    color 200ms var(--ease-slip),
+    transform 200ms var(--ease-spring);
+}
+
+.index-num,
+.index-title {
+  display: inline-block;
+}
+
+/* Inactive hover: nudge right, accent underline sweeps in from the left. */
+.index-item::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 1px;
+  height: 1px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 220ms var(--ease-slip);
 }
 
 /* Hover-capable pointers only, so touch taps don't leave a stale highlight. */
 @media (hover: hover) {
-  .index-item:hover {
-    color: var(--text);
+  .index-item:not(.is-active):hover {
+    color: var(--ink);
+    transform: translateX(2px);
+  }
+
+  .index-item:not(.is-active):hover::after {
+    transform: scaleX(1);
   }
 }
 
+/* The P3 signature: the active item snaps into an electric parallelogram.
+ * Inner text counter-skews back upright. */
 .index-item.is-active {
-  color: var(--accent);
+  color: var(--accent-ink);
+  background: var(--accent);
+  transform: skewX(var(--skew));
+}
+
+.index-item.is-active > span {
+  transform: skewX(var(--unskew));
+}
+
+.index-item.is-active::after {
+  content: none;
 }
 
 .index-title {
@@ -397,10 +572,10 @@ button {
 
 [data-fade] {
   opacity: 0;
-  transform: translateY(14px);
+  transform: translateY(8px);
   transition:
-    opacity 0.6s ease,
-    transform 0.6s ease;
+    opacity 240ms var(--ease-slip),
+    transform 240ms var(--ease-slip);
 }
 
 [data-fade].in-view {
@@ -413,6 +588,13 @@ button {
     opacity: 1;
     transform: none;
     transition: none;
+  }
+
+  /* Every hover/entry transition collapses to instant. */
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
   }
 }
 
@@ -460,6 +642,8 @@ button {
     padding: 64px 0 140px;
   }
 
+  /* The chapter-list strip: lifted a step above the page, with the one
+   * sanctioned halftone-dot texture behind it. */
   .chapter-index {
     left: 0;
     right: 0;
@@ -468,12 +652,14 @@ button {
     justify-content: center;
     gap: 6px;
     padding: 12px 10px calc(12px + env(safe-area-inset-bottom));
-    background: var(--ground);
+    background:
+      radial-gradient(var(--halftone-dot) 1px, transparent 1px) 0 0 / 3px 3px,
+      var(--surface);
     border-top: 1px solid var(--hairline);
   }
 
   .index-item {
-    padding: 6px 8px;
+    padding: 6px 10px;
   }
 
   /* Numbers only on mobile; titles stay as accessible names. */

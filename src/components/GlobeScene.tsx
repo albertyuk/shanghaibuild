@@ -69,7 +69,6 @@ const TOUR_OVERVIEW_MS = 1800;
 const DIVE_MS = 900;
 const DIVE_ALTITUDE = 0.03;
 const IDLE_ROTATE_SPEED = 0.35;
-const INACTIVE_PIN_OPACITY = 0.35;
 /** Draw-in timings — the slow reveal for arcs and pins. */
 const ARC_ENTER_MS = 700;
 const PIN_ENTER_MS = 500;
@@ -216,41 +215,41 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
   const hasScrolled = useRef(false);
 
   const palette = useMemo(() => {
-    const text = cssToken("--text");
     const accent = cssToken("--accent");
-    const coast = withAlpha(text, 0.4);
-    const border = withAlpha(text, 0.22);
+    // The glowing wireframe: coastlines burn a step brighter than the
+    // interior country borders.
+    const coast = withAlpha(accent, 0.6);
+    const border = withAlpha(accent, 0.45);
     return {
       accent,
-      ground: cssToken("--ground"),
-      wash: cssToken("--wash"),
+      accentHot: cssToken("--accent-hot"),
+      bg: cssToken("--bg"),
+      ocean: cssToken("--globe-ocean"),
+      land: cssToken("--globe-land"),
       // Per-datum accessor props run through accessor-fn, which treats a
       // plain string as a property name — colors there must be functions.
       // Memoized once, so layers never re-digest over accessor identity.
-      // Interior borders sit a step quieter than coastlines.
       pathColorAccessor: (datum: object) =>
         (datum as PathDatum).kind === "border" ? border : coast,
-      pinDim: withAlpha(accent, INACTIVE_PIN_OPACITY),
-      transparent: withAlpha(cssToken("--ground"), 0),
     };
   }, []);
 
-  // Flat, unlit materials: a pale-blue ocean sphere with ground-white land
-  // on top — the print-flat look, and no lighting math per frame.
+  // Flat, unlit materials: a midnight ocean sphere with abyss-navy land
+  // on top — the wireframe-planet look, and no lighting math per frame.
   const globeMaterial = useMemo(
-    () => new MeshBasicMaterial({ color: palette.wash }),
+    () => new MeshBasicMaterial({ color: palette.ocean }),
     [palette],
   );
   // Front-side only: the build-time tiler winds every ring to d3-geo's
   // clockwise-exterior convention, so all caps face outward uniformly.
   // The horizon clip removes the far-side band that floats past the limb.
   const landMaterial = useMemo(
-    () => clipBehindHorizon(new MeshBasicMaterial({ color: palette.ground })),
+    () => clipBehindHorizon(new MeshBasicMaterial({ color: palette.land })),
     [palette],
   );
-  // Lakes reuse the ocean wash, floated just above the land caps.
+  // Lakes reuse the midnight ocean, floated just above the land caps.
   const lakeMaterial = useMemo(
-    () => clipBehindHorizon(new MeshBasicMaterial({ color: palette.wash })),
+    () => clipBehindHorizon(new MeshBasicMaterial({ color: palette.ocean })),
     [palette],
   );
   const capMaterialAccessor = useMemo(
@@ -623,7 +622,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           ref={globeRef}
           width={size.width}
           height={size.height}
-          backgroundColor={palette.transparent}
+          backgroundColor={palette.bg}
           globeMaterial={globeMaterial}
           atmosphereColor={palette.accent}
           atmosphereAltitude={0.12}
@@ -651,7 +650,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           pointLat={(d) => (d as PointDatum).lat}
           pointLng={(d) => (d as PointDatum).lng}
           pointColor={(d) =>
-            (d as PointDatum).chapterId === activeId ? palette.accent : palette.pinDim
+            (d as PointDatum).chapterId === activeId ? palette.accentHot : palette.accent
           }
           pointRadius={(d) => ((d as PointDatum).chapterId === activeId ? 0.6 : 0.32)}
           pointAltitude={(d) => ((d as PointDatum).chapterId === activeId ? 0.02 : 0.008)}

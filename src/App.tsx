@@ -103,7 +103,9 @@ export default function App() {
           disabled={diving}
           aria-pressed={earthbound}
         >
-          {earthbound ? site.earthUp : site.earthDown}
+          <span className="earth-toggle-label">
+            {earthbound ? site.earthUp : site.earthDown}
+          </span>
         </button>
       )}
       {showGlobe && (
