@@ -6,6 +6,7 @@ import { ChapterIndex } from "./components/ChapterIndex";
 import { SiteFooter } from "./components/SiteFooter";
 import { GlobePlaceholder } from "./components/GlobePlaceholder";
 import { GlobeErrorBoundary } from "./components/GlobeErrorBoundary";
+import { PhotoCallouts } from "./components/PhotoCallouts";
 import { hasWebGL } from "./lib/webgl";
 import { readingCenterFraction } from "./lib/viewport";
 import { useMediaQuery } from "./hooks/useMediaQuery";
@@ -108,6 +109,7 @@ export default function App() {
           </span>
         </button>
       )}
+      {showGlobe && <PhotoCallouts activeId={activeId} />}
       {showGlobe && (
         <div className="globe-pane" aria-hidden="true">
           <GlobeErrorBoundary fallback={<GlobePlaceholder />}>

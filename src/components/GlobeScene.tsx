@@ -710,8 +710,10 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           pointColor={(d) =>
             (d as PointDatum).chapterId === activeId ? palette.accent : palette.pinDim
           }
-          pointRadius={(d) => ((d as PointDatum).chapterId === activeId ? 0.6 : 0.32)}
-          pointAltitude={(d) => ((d as PointDatum).chapterId === activeId ? 0.02 : 0.008)}
+          // Active pins are briefing-map needles: thin tall stalks rising
+          // off the chart; inactive locations stay low dots.
+          pointRadius={(d) => ((d as PointDatum).chapterId === activeId ? 0.35 : 0.32)}
+          pointAltitude={(d) => ((d as PointDatum).chapterId === activeId ? 0.06 : 0.008)}
           pointsTransitionDuration={reducedMotion ? 0 : PIN_ENTER_MS}
           arcsData={arcs}
           arcStartLat={(d) => (d as ArcDatum).startLat}

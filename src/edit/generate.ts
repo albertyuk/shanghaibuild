@@ -8,8 +8,29 @@ import type { EditableChapter, SiteContent } from "./types";
 
 const s = (value: string) => JSON.stringify(value);
 
-function pinLine(pin: { city: string; country: string; lat: number; lng: number }) {
-  return `{ city: ${s(pin.city)}, country: ${s(pin.country)}, lat: ${pin.lat}, lng: ${pin.lng} }`;
+type PinShape = {
+  city: string;
+  country: string;
+  lat: number;
+  lng: number;
+  photos?: { src: string; caption?: string }[];
+};
+
+function photoList(photos: PinShape["photos"]): string {
+  const kept = (photos ?? []).filter((photo) => photo.src.trim());
+  if (!kept.length) return "";
+  const items = kept
+    .slice(0, 2)
+    .map((photo) =>
+      photo.caption?.trim()
+        ? `{ src: ${s(photo.src.trim())}, caption: ${s(photo.caption.trim())} }`
+        : `{ src: ${s(photo.src.trim())} }`,
+    );
+  return `, photos: [${items.join(", ")}]`;
+}
+
+function pinLine(pin: PinShape) {
+  return `{ city: ${s(pin.city)}, country: ${s(pin.country)}, lat: ${pin.lat}, lng: ${pin.lng}${photoList(pin.photos)} }`;
 }
 
 function chapterBlock(chapter: EditableChapter): string {
@@ -49,11 +70,23 @@ export function generateChaptersTs(
  * equally fine.
  */
 
+/** One recon-photo slot for a location's callout panel. */
+export interface PhotoSlot {
+  /** Image URL — drop a file in public/photos and reference it as
+   *  "/photos/name.jpg", or use any absolute https URL. */
+  src: string;
+  caption?: string;
+}
+
 export interface Pin {
   city: string;
   country: string;
   lat: number;
   lng: number;
+  /** Sat-photo callouts for this location — up to two. Fill these in
+   *  later (hand-edit or the private editor at /edit.html); empty or
+   *  missing means no panel renders. */
+  photos?: PhotoSlot[];
 }
 
 export interface Chapter {

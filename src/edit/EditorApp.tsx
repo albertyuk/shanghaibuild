@@ -33,6 +33,15 @@ function validate(chapters: EditableChapter[], site: SiteContent): string[] {
     if (chapter.altitude < 0.05 || chapter.altitude > 3) {
       errors.push(`${label}: altitude should be between 0.05 and 3.`);
     }
+    chapter.pins.forEach((pin, p) => {
+      (pin.photos ?? []).forEach((photo, k) => {
+        if ((photo.caption ?? "").trim() && !photo.src.trim()) {
+          errors.push(
+            `${label}, pin ${p + 1}: photo ${k + 1} has a caption but no image URL.`,
+          );
+        }
+      });
+    });
     for (const [from, to] of chapter.arcs ?? []) {
       if (!chapter.pins[from] || !chapter.pins[to]) {
         errors.push(`${label}: arc [${from}, ${to}] points at a missing pin.`);
@@ -70,6 +79,28 @@ export function EditorApp() {
           ? { ...c, pins: c.pins.map((p, j) => (j === pinIndex ? { ...p, ...patch } : p)) }
           : c,
       ),
+    );
+
+  // Photo slots are a fixed pair per pin; empty srcs are dropped at export.
+  const setPhoto = (
+    chapterIndex: number,
+    pinIndex: number,
+    slot: number,
+    patch: { src?: string; caption?: string },
+  ) =>
+    setChapters((prev) =>
+      prev.map((c, i) => {
+        if (i !== chapterIndex) return c;
+        return {
+          ...c,
+          pins: c.pins.map((pin, j) => {
+            if (j !== pinIndex) return pin;
+            const photos = [0, 1].map((k) => pin.photos?.[k] ?? { src: "" });
+            photos[slot] = { ...photos[slot], ...patch };
+            return { ...pin, photos };
+          }),
+        };
+      }),
     );
 
   const download = () => {
@@ -302,6 +333,25 @@ export function EditorApp() {
                   onPick={(lat, lng) => patchPin(i, p, { lat, lng })}
                 />
               )}
+              {[0, 1].map((slot) => (
+                <div className="row photo-row" key={`photo-${slot}`}>
+                  <span className="slot-label">photo {slot + 1}</span>
+                  <input
+                    type="text"
+                    value={pin.photos?.[slot]?.src ?? ""}
+                    placeholder="/photos/example.jpg or https://…"
+                    aria-label={`Pin ${p + 1} photo ${slot + 1} URL`}
+                    onChange={(e) => setPhoto(i, p, slot, { src: e.target.value })}
+                  />
+                  <input
+                    type="text"
+                    value={pin.photos?.[slot]?.caption ?? ""}
+                    placeholder="Caption (optional)"
+                    aria-label={`Pin ${p + 1} photo ${slot + 1} caption`}
+                    onChange={(e) => setPhoto(i, p, slot, { caption: e.target.value })}
+                  />
+                </div>
+              ))}
             </div>
           ))}
           <button

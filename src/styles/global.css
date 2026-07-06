@@ -231,6 +231,93 @@ button {
   pointer-events: none;
 }
 
+/* ---------- Briefing photo callouts ---------- */
+
+/* Sat-photo panels for the active chapter's pins, stacked under the
+ * pane's top corner tick. Rendered only when a pin has photo slots
+ * filled. */
+.photo-callouts {
+  position: fixed;
+  top: 44px;
+  left: 24px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(230px, 22vw);
+  animation: callout-in 240ms var(--ease-slip);
+}
+
+@keyframes callout-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.photo-callout {
+  margin: 0;
+  padding: 8px;
+  background: var(--bg);
+  border: 1px solid var(--hairline);
+  border-left: 2px solid var(--accent);
+}
+
+.photo-callout-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 7px;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.photo-callout-coords {
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.photo-callout-strip {
+  display: flex;
+  gap: 6px;
+}
+
+/* Recon-photo desaturation: images read as satellite stills. */
+.photo-callout img {
+  display: block;
+  flex: 1 1 0;
+  min-width: 0;
+  width: 100%;
+  border: 1px solid var(--hairline);
+  filter: saturate(0.25) contrast(1.05);
+}
+
+.photo-callout-caption {
+  margin: 7px 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+@media (max-width: 899px) {
+  .photo-callouts {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo-callouts {
+    animation: none;
+  }
+}
+
 .globe-placeholder {
   position: absolute;
   inset: 0;

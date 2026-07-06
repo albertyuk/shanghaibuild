@@ -4,11 +4,23 @@
  * nothing. Lines marked TODO(ALBERT) are placeholders Albert edits himself.
  */
 
+/** One recon-photo slot for a location's callout panel. */
+export interface PhotoSlot {
+  /** Image URL — drop a file in public/photos and reference it as
+   *  "/photos/name.jpg", or use any absolute https URL. */
+  src: string;
+  caption?: string;
+}
+
 export interface Pin {
   city: string;
   country: string;
   lat: number;
   lng: number;
+  /** Sat-photo callouts for this location — up to two. Fill these in
+   *  later (hand-edit or the private editor at /edit.html); empty or
+   *  missing means no panel renders. */
+  photos?: PhotoSlot[];
 }
 
 export interface Chapter {

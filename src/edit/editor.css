@@ -180,6 +180,22 @@ button.ghost.danger:hover:not(:disabled) {
   border-color: var(--muted);
 }
 
+/* Per-pin photo slots, indented on their own line under the pin row. */
+.photo-row {
+  flex-basis: 100%;
+  margin-left: 24px;
+  margin-bottom: 4px;
+}
+
+.slot-label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  flex: 0 0 64px;
+}
+
 .map-picker {
   flex-basis: 100%;
   width: 100%;
