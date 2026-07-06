@@ -54,7 +54,7 @@ export const chapters: Chapter[] = [
     dates: "Jun – Aug 2026",
     blurb:
       "Built agentic AI workflows in Dify and Apify that automate competitive brand research and influencer evaluation across SHEIN's portfolio of 10+ sub-brands, cutting multi-day manual research to minutes per brand. Shipped bilingual report generation with live web-search grounding and anti-fabrication guardrails, plus an end-to-end Instagram intelligence pipeline that turns captions and engagement metrics into structured spreadsheets.",
-    pins: [{ city: "Caohejing · Shanghai", country: "China", lat: 31.1727, lng: 121.3947, photos: [{ src: "/photos/2026-07-06-10.25.21.webp" }, { src: "/photos/2026-07-06-10.26.23.webp" }], panel: { x: 5, y: 11.3 } }],
+    pins: [{ city: "Caohejing · Shanghai", country: "China", lat: 31.1727, lng: 121.3947, photos: [{ src: "/photos/2026-07-06-10.25.21.webp" }, { src: "/photos/2026-07-06-10.26.23.webp" }], panel: { x: 4.5, y: 11.5 } }],
     altitude: 0.035,
   },
   {
@@ -65,7 +65,7 @@ export const chapters: Chapter[] = [
     dates: "May – Jun 2025",
     blurb:
       "Assisted photographer Chen Man on roughly 20 commercial fashion shoots — lighting setups, on-set production logistics, and shoot scheduling.",
-    pins: [{ city: "West Bund · Shanghai", country: "China", lat: 31.169, lng: 121.456, photos: [{ src: "/photos/5c83c842-4cd1-4a60-985c-ff8167a071cf-1-105-c.jpeg" }, { src: "/photos/5251b04b-1af6-4a44-be9e-dfa0b3c63ae1-1-105-c.jpeg" }], panel: { x: 5.2, y: 60.3 } }],
+    pins: [{ city: "West Bund · Shanghai", country: "China", lat: 31.169, lng: 121.456, photos: [{ src: "/photos/5c83c842-4cd1-4a60-985c-ff8167a071cf-1-105-c.jpeg" }, { src: "/photos/5251b04b-1af6-4a44-be9e-dfa0b3c63ae1-1-105-c.jpeg" }], panel: { x: 43.3, y: 2.3 } }],
     altitude: 0.022,
     link: "https://www.yukalbert.com/photograph",
   },
@@ -79,7 +79,7 @@ export const chapters: Chapter[] = [
       "On-set production work across feature and commercial sets.",
     pins: [
       { city: "Beijing", country: "China", lat: 39.9042, lng: 116.4074, photos: [{ src: "/photos/a572327e-cbad-462b-b655-e4841e658365-1-105-c.jpeg" }], panel: { x: 3.2, y: 10.8 } },
-      { city: "Shenzhen", country: "China", lat: 22.5431, lng: 114.0579, photos: [{ src: "/photos/d536d1e0-a80e-41b8-bd1c-74cdbb7687dc-1-105-c.jpeg" }], panel: { x: 41.3, y: 68.1 } },
+      { city: "Shenzhen", country: "China", lat: 22.5431, lng: 114.0579, photos: [{ src: "/photos/d536d1e0-a80e-41b8-bd1c-74cdbb7687dc-1-105-c.jpeg" }], panel: { x: 41.1, y: 24.4 } },
     ],
     arcs: [
       [0, 1],
@@ -96,10 +96,10 @@ export const chapters: Chapter[] = [
     blurb:
       "Production assistance across Central Asia and the Middle East, documenting cultural and geopolitical change — the journey behind the Central Asia, Israel, and Iran photo series.",
     pins: [
-      { city: "Almaty", country: "Kazakhstan", lat: 43.238, lng: 76.8829, photos: [{ src: "/photos/0c0ea97a-0203-49b3-b9c0-94fec94a3cb3-1-105-c.jpeg" }], panel: { x: 2, y: 63.5 } },
-      { city: "Samarkand", country: "Uzbekistan", lat: 39.6542, lng: 66.9597, photos: [{ src: "/photos/9501c106-4612-4ce6-a274-d390ddfdcc3e-1-105-c.jpeg" }], panel: { x: 5.5, y: 2.4 } },
-      { city: "Jerusalem", country: "Israel", lat: 31.7683, lng: 35.2137, photos: [{ src: "/photos/bb0f4995-a011-4c57-baa6-e2a6a6c06f9c-1-105-c.jpeg" }, { src: "/photos/7a7d93f4-b95b-4530-895c-3e5d63c223bf-1-105-c.webp" }], panel: { x: 40.3, y: 9.7 } },
-      { city: "Tehran", country: "Iran", lat: 35.6892, lng: 51.389, photos: [{ src: "/photos/66bd7afc-4e51-4d82-857e-06965a0c3f8f-1-105-c.jpeg" }, { src: "/photos/3a5e2319-a5b8-4bef-a38d-ea2d2be7bcb0-1-105-c.jpeg" }], panel: { x: 38.6, y: 64.5 } },
+      { city: "Almaty", country: "Kazakhstan", lat: 43.238, lng: 76.8829, photos: [{ src: "/photos/0c0ea97a-0203-49b3-b9c0-94fec94a3cb3-1-105-c.jpeg" }], panel: { x: 39.6, y: 12.6 } },
+      { city: "Samarkand", country: "Uzbekistan", lat: 39.6542, lng: 66.9597, photos: [{ src: "/photos/9501c106-4612-4ce6-a274-d390ddfdcc3e-1-105-c.jpeg" }], panel: { x: 0, y: 18.7 } },
+      { city: "Jerusalem", country: "Israel", lat: 31.7683, lng: 35.2137, photos: [{ src: "/photos/bb0f4995-a011-4c57-baa6-e2a6a6c06f9c-1-105-c.jpeg" }, { src: "/photos/7a7d93f4-b95b-4530-895c-3e5d63c223bf-1-105-c.webp" }], panel: { x: 40.1, y: 10 } },
+      { city: "Tehran", country: "Iran", lat: 35.6892, lng: 51.389, photos: [{ src: "/photos/66bd7afc-4e51-4d82-857e-06965a0c3f8f-1-105-c.jpeg" }, { src: "/photos/3a5e2319-a5b8-4bef-a38d-ea2d2be7bcb0-1-105-c.jpeg" }], panel: { x: 39.8, y: 8.7 } },
     ],
     arcs: [
       [0, 1],
@@ -118,9 +118,9 @@ export const chapters: Chapter[] = [
     blurb:
       "Solo-directed, shot, and edited a documentary following MAGA hats from the factories of Yiwu through the Port of Shanghai to a rally crowd in Pennsylvania. All-American High School Film Festival Spark Award — top 1% of 2,700+ submissions.",
     pins: [
-      { city: "Yiwu", country: "China", lat: 29.3069, lng: 120.0753, photos: [{ src: "/photos/2026-07-06-10.47.02.webp" }], panel: { x: 0.7, y: 66.7 } },
+      { city: "Yiwu", country: "China", lat: 29.3069, lng: 120.0753, photos: [{ src: "/photos/2026-07-06-10.47.02.webp" }], panel: { x: 1.1, y: 16 } },
       { city: "Port of Shanghai", country: "China", lat: 30.6289, lng: 122.0639, photos: [{ src: "/photos/470f90c4-25c2-46df-bfb0-faa8b35a7f9c-1-102-o.webp" }], panel: { x: 41.4, y: 33.4 } },
-      { city: "Butler, PA", country: "United States", lat: 40.8612, lng: -79.8953, photos: [{ src: "/photos/2026-07-06-10.46.26.webp" }], panel: { x: 4, y: 7.4 } },
+      { city: "Butler, PA", country: "United States", lat: 40.8612, lng: -79.8953, photos: [{ src: "/photos/2026-07-06-10.46.26.webp" }], panel: { x: 3, y: 13.5 } },
     ],
     arcs: [
       [0, 1],
@@ -136,7 +136,7 @@ export const chapters: Chapter[] = [
     dates: "Sep 2022 – May 2026",
     blurb:
       "Led a team of 10+ photographers covering ~200 campus events, reaching 100,000+ monthly views. Photographed 100+ senior portrait sessions featured in the yearbook.",
-    pins: [{ city: "Deerfield, MA", country: "United States", lat: 42.5459, lng: -72.6037, photos: [{ src: "/photos/img-5495.webp" }], panel: { x: 4.8, y: 13.3 } }],
+    pins: [{ city: "Deerfield, MA", country: "United States", lat: 42.5459, lng: -72.6037, photos: [{ src: "/photos/img-5495.webp" }], panel: { x: 41.6, y: 12.9 } }],
     altitude: 0.65,
     link: "https://www.yukalbert.com/school",
   },
