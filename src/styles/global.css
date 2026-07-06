@@ -137,6 +137,28 @@ button {
   transform: skewX(var(--unskew));
 }
 
+/* The diagonal edge of the clipped corner — without it, the cut reads
+ * as a gap in the hairline border. Lives in the same local space as the
+ * clip, so the skew shears both together. */
+.earth-toggle::after {
+  content: "";
+  position: absolute;
+  right: -3px;
+  bottom: 6px;
+  width: 20px;
+  height: 1px;
+  background: var(--hairline);
+  transform: rotate(-45deg);
+}
+
+/* clip-path clips outlines too, so the global focus ring can never show
+ * on this button — paint the indicator inside the border box instead. */
+.earth-toggle:focus-visible {
+  outline: none;
+  border-color: var(--accent-hot);
+  box-shadow: inset 0 0 0 2px var(--accent-hot);
+}
+
 @media (hover: hover) {
   .earth-toggle:hover:not(:disabled) {
     background: var(--accent);

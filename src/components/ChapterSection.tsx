@@ -33,7 +33,7 @@ export function ChapterSection({ chapter, index }: Props) {
         {String(index + 1).padStart(2, "0")}
         <svg className="moon-glyph" viewBox="0 0 20 20" aria-hidden="true">
           <circle cx="10" cy="10" r="8" />
-          <path d={moonPath(index / (chapters.length - 1))} />
+          <path d={moonPath(index / Math.max(1, chapters.length - 1))} />
         </svg>
       </p>
       <p className="eyebrow">{chapterEyebrow(chapter)}</p>
