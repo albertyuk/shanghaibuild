@@ -74,10 +74,9 @@ const ARC_ENTER_MS = 700;
 const PIN_ENTER_MS = 500;
 /** The briefing-map graticule: faint electric grid over the whole map. */
 const GRID_OPACITY = 0.14;
-/** Active pins rise to this altitude; reticles track the needle tip.
- *  Short and hairline-thin: at oblique framings a taller or fatter
- *  cylinder projects as a smeared bar through its reticle. */
-const NEEDLE_ALT = 0.035;
+/** Reticle tracking altitude — a whisker above the flat markers, so the
+ *  crosshair centers on the dot rather than a point inside the globe. */
+const RETICLE_ALT = 0.01;
 
 // Stable identity matters: a new accessor function per render would make
 // three-globe tear down and re-tessellate every land polygon. A null side
@@ -474,7 +473,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
       const camLen = Math.hypot(cam.x, cam.y, cam.z) || 1;
       const horizon = GLOBE_RADIUS / camLen - 0.005;
       const behindHorizon = (pin: Pin) => {
-        const pos = globe.getCoords(pin.lat, pin.lng, NEEDLE_ALT);
+        const pos = globe.getCoords(pin.lat, pin.lng, RETICLE_ALT);
         const posLen = Math.hypot(pos.x, pos.y, pos.z) || 1;
         return (
           (pos.x * cam.x + pos.y * cam.y + pos.z * cam.z) / (posLen * camLen) < horizon
@@ -489,7 +488,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           mark.style.visibility = "hidden";
           return;
         }
-        const screen = globe.getScreenCoords(pin.lat, pin.lng, NEEDLE_ALT);
+        const screen = globe.getScreenCoords(pin.lat, pin.lng, RETICLE_ALT);
         mark.setAttribute("transform", `translate(${screen.x}, ${screen.y})`);
         mark.style.visibility = "visible";
       });
@@ -504,7 +503,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           line.style.visibility = "hidden";
           return;
         }
-        const screen = globe.getScreenCoords(pin.lat, pin.lng, NEEDLE_ALT);
+        const screen = globe.getScreenCoords(pin.lat, pin.lng, RETICLE_ALT);
         const rect = panel.getBoundingClientRect();
         // Panels live on the rail side, right of the map; the line
         // leaves from their left edge, crosses the pane boundary, and
@@ -826,13 +825,10 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           pointColor={(d) =>
             (d as PointDatum).chapterId === activeId ? palette.accent : palette.pinDim
           }
-          // Active pins are briefing-map needles: thin tall stalks rising
-          // off the chart, tipped by the SVG crosshair; inactive
-          // locations stay low dots.
-          pointRadius={(d) => ((d as PointDatum).chapterId === activeId ? 0.09 : 0.22)}
-          pointAltitude={(d) =>
-            (d as PointDatum).chapterId === activeId ? NEEDLE_ALT : 0.008
-          }
+          // Every location is a flat map dot — the SVG reticle does the
+          // marking for the active chapter. No pillars.
+          pointRadius={(d) => ((d as PointDatum).chapterId === activeId ? 0.14 : 0.22)}
+          pointAltitude={0.008}
           pointsTransitionDuration={reducedMotion ? 0 : PIN_ENTER_MS}
           arcsData={arcs}
           arcStartLat={(d) => (d as ArcDatum).startLat}
