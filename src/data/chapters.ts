@@ -18,7 +18,9 @@ export interface Chapter {
   role: string;
   dates: string;
   blurb: string;
-  pins: Pin[];
+  /** Where it happened. Never empty — the camera, eyebrow, and dive all
+   *  read pins[0], so the type demands at least one. */
+  pins: [Pin, ...Pin[]];
   /** Pairs of indexes into `pins`, drawn as animated arcs while the chapter is active. */
   arcs?: [number, number][];
   /** Globe camera altitude when this chapter is active. */

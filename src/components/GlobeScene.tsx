@@ -423,16 +423,20 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
   // option, so capture the reduced-motion preference at mount.
   const animateIn = useRef(!reducedMotion);
 
-  // Arcs exist only while their chapter is active.
+  // Arcs exist only while their chapter is active. Arc endpoints are
+  // hand-authored indexes into pins — a bad index drops that arc rather
+  // than crashing the scene.
   const arcs = useMemo<ArcDatum[]>(() => {
     const chapter = chapters.find((ch) => ch.id === activeId);
     if (!chapter?.arcs) return [];
-    return chapter.arcs.map(([from, to]) => ({
-      startLat: chapter.pins[from].lat,
-      startLng: chapter.pins[from].lng,
-      endLat: chapter.pins[to].lat,
-      endLng: chapter.pins[to].lng,
-    }));
+    return chapter.arcs
+      .filter(([from, to]) => chapter.pins[from] && chapter.pins[to])
+      .map(([from, to]) => ({
+        startLat: chapter.pins[from].lat,
+        startLng: chapter.pins[from].lng,
+        endLat: chapter.pins[to].lat,
+        endLng: chapter.pins[to].lng,
+      }));
   }, [activeId]);
 
   // Radar rings sweep out from the active chapter's pins — the briefing
