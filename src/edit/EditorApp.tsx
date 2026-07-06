@@ -13,6 +13,27 @@ import { MapPicker } from "./MapPicker";
 
 const deepCopy = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
+/** sha256("…") of the editor password — the plaintext never ships. A
+ *  client-side gate on a static site keeps casual visitors out; it is
+ *  a curtain, not a vault (the editor holds no secrets and can write
+ *  nothing — real locking belongs at the hosting layer). */
+const PASS_HASH = "5d0dcb207f24be6738e308c6bba22721a0dc15b2372712ac5f71075ec1cc3e78";
+
+async function sha256Hex(text: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Dropped photo files, keyed by their sanitized target filename, so the
+ *  export step can hand them back for saving into public/photos. */
+export interface DroppedFile {
+  file: File;
+  url: string;
+}
+
+const sanitizeFilename = (name: string) =>
+  name.toLowerCase().replace(/[^a-z0-9.-]+/g, "-").replace(/^-+|-+$/g, "");
+
 function validate(chapters: EditableChapter[], site: SiteContent): string[] {
   const errors: string[] = [];
   if (!site.name.trim()) errors.push("Site: name is empty.");
@@ -58,6 +79,11 @@ export function EditorApp() {
   const [site, setSite] = useState<SiteContent>(() => deepCopy(sourceSite));
   const [openMap, setOpenMap] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
+  const [attempt, setAttempt] = useState("");
+  const [wrongPass, setWrongPass] = useState(false);
+  const [dropped, setDropped] = useState<Record<string, DroppedFile>>({});
+  const [dragOver, setDragOver] = useState<string | null>(null);
 
   const errors = useMemo(() => validate(chapters, site), [chapters, site]);
   const output = useMemo(
@@ -119,6 +145,36 @@ export function EditorApp() {
     window.setTimeout(() => setCopied(false), 1600);
   };
 
+  const acceptDrop = (
+    chapterIndex: number,
+    pinIndex: number,
+    slot: number,
+    file: File | undefined,
+  ) => {
+    if (!file || !file.type.startsWith("image/")) return;
+    const name = sanitizeFilename(file.name) || "photo.jpg";
+    setDropped((prev) => {
+      if (prev[name]) URL.revokeObjectURL(prev[name].url);
+      return { ...prev, [name]: { file, url: URL.createObjectURL(file) } };
+    });
+    setPhoto(chapterIndex, pinIndex, slot, { src: `/photos/${name}` });
+  };
+
+  const downloadDropped = (name: string) => {
+    const a = document.createElement("a");
+    a.href = dropped[name].url;
+    a.download = name;
+    a.click();
+  };
+
+  /** Preview source for a slot: the dropped file when we hold it, else
+   *  whatever the src points at. */
+  const previewFor = (src: string | undefined) => {
+    if (!src) return null;
+    const name = src.replace(/^\/photos\//, "");
+    return dropped[name]?.url ?? src;
+  };
+
   const textField = (
     label: string,
     value: string,
@@ -134,6 +190,39 @@ export function EditorApp() {
       )}
     </label>
   );
+
+  if (!unlocked) {
+    return (
+      <div className="editor gate">
+        <form
+          className="panel gate-panel"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void sha256Hex(attempt).then((hex) => {
+              if (hex === PASS_HASH) setUnlocked(true);
+              else setWrongPass(true);
+            });
+          }}
+        >
+          <h2>Content editor</h2>
+          <label className="field">
+            <span>Password</span>
+            <input
+              type="password"
+              value={attempt}
+              autoFocus
+              onChange={(e) => {
+                setAttempt(e.target.value);
+                setWrongPass(false);
+              }}
+            />
+          </label>
+          {wrongPass && <p className="gate-error">Wrong password.</p>}
+          <button type="submit">Unlock</button>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="editor">
@@ -333,25 +422,47 @@ export function EditorApp() {
                   onPick={(lat, lng) => patchPin(i, p, { lat, lng })}
                 />
               )}
-              {[0, 1].map((slot) => (
-                <div className="row photo-row" key={`photo-${slot}`}>
-                  <span className="slot-label">photo {slot + 1}</span>
-                  <input
-                    type="text"
-                    value={pin.photos?.[slot]?.src ?? ""}
-                    placeholder="/photos/example.jpg or https://…"
-                    aria-label={`Pin ${p + 1} photo ${slot + 1} URL`}
-                    onChange={(e) => setPhoto(i, p, slot, { src: e.target.value })}
-                  />
-                  <input
-                    type="text"
-                    value={pin.photos?.[slot]?.caption ?? ""}
-                    placeholder="Caption (optional)"
-                    aria-label={`Pin ${p + 1} photo ${slot + 1} caption`}
-                    onChange={(e) => setPhoto(i, p, slot, { caption: e.target.value })}
-                  />
-                </div>
-              ))}
+              {[0, 1].map((slot) => {
+                const slotKey = `${i}:${p}:${slot}`;
+                const preview = previewFor(pin.photos?.[slot]?.src);
+                return (
+                  <div
+                    className={
+                      dragOver === slotKey ? "row photo-row drop-active" : "row photo-row"
+                    }
+                    key={`photo-${slot}`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragOver(slotKey);
+                    }}
+                    onDragLeave={() => setDragOver(null)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragOver(null);
+                      acceptDrop(i, p, slot, e.dataTransfer.files[0]);
+                    }}
+                  >
+                    <span className="slot-label">photo {slot + 1}</span>
+                    {preview && (
+                      <img className="slot-thumb" src={preview} alt="" aria-hidden="true" />
+                    )}
+                    <input
+                      type="text"
+                      value={pin.photos?.[slot]?.src ?? ""}
+                      placeholder="Drop an image here, or type /photos/… or https://…"
+                      aria-label={`Pin ${p + 1} photo ${slot + 1} URL`}
+                      onChange={(e) => setPhoto(i, p, slot, { src: e.target.value })}
+                    />
+                    <input
+                      type="text"
+                      value={pin.photos?.[slot]?.caption ?? ""}
+                      placeholder="Caption (optional)"
+                      aria-label={`Pin ${p + 1} photo ${slot + 1} caption`}
+                      onChange={(e) => setPhoto(i, p, slot, { caption: e.target.value })}
+                    />
+                  </div>
+                );
+              })}
             </div>
           ))}
           <button
@@ -466,6 +577,24 @@ export function EditorApp() {
             {copied ? "Copied" : "Copy to clipboard"}
           </button>
         </div>
+        {Object.keys(dropped).length > 0 && (
+          <>
+            <h3>Dropped photo files</h3>
+            <p className="editor-note">
+              Download each file and save it into <code>public/photos/</code> in
+              the repo (same commit as chapters.ts) so the URLs resolve.
+            </p>
+            {Object.keys(dropped).map((name) => (
+              <div className="row" key={name}>
+                <img className="slot-thumb" src={dropped[name].url} alt="" aria-hidden="true" />
+                <code className="drop-name">/photos/{name}</code>
+                <button type="button" className="ghost" onClick={() => downloadDropped(name)}>
+                  download
+                </button>
+              </div>
+            ))}
+          </>
+        )}
       </section>
     </div>
   );
