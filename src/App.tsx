@@ -7,6 +7,7 @@ import { SiteFooter } from "./components/SiteFooter";
 import { GlobePlaceholder } from "./components/GlobePlaceholder";
 import { GlobeErrorBoundary } from "./components/GlobeErrorBoundary";
 import { PhotoCallouts } from "./components/PhotoCallouts";
+import { Decode } from "./components/Decode";
 import { hasWebGL } from "./lib/webgl";
 import { readingCenterFraction } from "./lib/viewport";
 import { useMediaQuery } from "./hooks/useMediaQuery";
@@ -168,21 +169,8 @@ export default function App() {
               <path d="M 0 -12 V -8.4 M 0 8.4 V 12 M -12 0 H -8.4 M 8.4 0 H 12" />
               <circle r={1.5} />
             </svg>
-            {/* The label types itself in per character; screen readers
-             * get the plain string, the animated spans are decoration. */}
             <p className="boot-label">
-              <span className="boot-label-sr">{site.loadingLabel}</span>
-              <span aria-hidden="true">
-                {[...site.loadingLabel].map((ch, i) => (
-                  <span
-                    key={i}
-                    className="boot-ch"
-                    style={{ animationDelay: `${i * 45}ms` }}
-                  >
-                    {ch === " " ? " " : ch}
-                  </span>
-                ))}
-              </span>
+              <Decode text={site.loadingLabel} />
             </p>
             <div className="boot-progress" aria-hidden="true">
               <div className="boot-progress-fill" ref={bootBarRef} />

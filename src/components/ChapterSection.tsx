@@ -1,5 +1,6 @@
 import { chapters, type Chapter } from "../data/chapters";
 import { chapterEyebrow } from "../lib/coords";
+import { Decode } from "./Decode";
 
 interface Props {
   chapter: Chapter;
@@ -20,6 +21,10 @@ function moonPath(fraction: number): string {
 
 export function ChapterSection({ chapter, index }: Props) {
   const meta = [chapter.role, chapter.org, chapter.dates].filter(Boolean).join(" · ");
+  const eyebrow = chapterEyebrow(chapter);
+  // Long multi-city eyebrows sweep faster so the decode never drags —
+  // the whole line lands in roughly a second regardless of length.
+  const eyebrowStep = Math.max(14, Math.min(38, Math.round(1100 / eyebrow.length)));
 
   return (
     <section
@@ -36,7 +41,9 @@ export function ChapterSection({ chapter, index }: Props) {
           <path d={moonPath(index / Math.max(1, chapters.length - 1))} />
         </svg>
       </p>
-      <p className="eyebrow">{chapterEyebrow(chapter)}</p>
+      <p className="eyebrow">
+        <Decode text={eyebrow} step={eyebrowStep} />
+      </p>
       <h2 id={`${chapter.id}-title`}>{chapter.title}</h2>
       {meta && <p className="chapter-meta">{meta}</p>}
       <p className="blurb">{chapter.blurb}</p>

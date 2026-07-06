@@ -1,4 +1,5 @@
 import { site } from "../data/chapters";
+import { Decode } from "./Decode";
 
 /** Contact links are authored content; only web and mail schemes may
  *  reach an href (a javascript: URL here would execute in visitors'
@@ -9,7 +10,9 @@ const safeHref = (href: string) =>
 export function SiteFooter() {
   return (
     <footer className="footer" data-fade>
-      <p className="footer-kicker">{site.contactHeading}</p>
+      <p className="footer-kicker">
+        <Decode text={site.contactHeading} />
+      </p>
       <ul className="footer-links">
         {site.contact.map((item) => (
           <li key={item.href}>

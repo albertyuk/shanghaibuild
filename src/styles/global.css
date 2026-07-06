@@ -179,9 +179,13 @@ button {
   color: var(--muted);
 }
 
-/* Screen readers get the plain label string; the per-character spans
- * below are pure decoration. */
-.boot-label-sr {
+/* Block-decode typing (the Decode component): each character lands as
+ * a solid accent block, decodes to its letter, drops out once, holds —
+ * staggered left to right (per-character delays set inline). Reused
+ * across the briefing chrome: boot label, hero kicker, chapter
+ * eyebrows, footer kicker, callout titles. currentColor in the
+ * keyframes means every host keeps its own ink. */
+.decode-sr {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -190,12 +194,28 @@ button {
   white-space: nowrap;
 }
 
-/* The label types itself in: each character lands as a solid accent
- * block, decodes to its letter, drops out once, and holds — staggered
- * left to right (per-character delays set inline). */
-.boot-ch {
+.decode-word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.decode-ch {
   display: inline-block;
   animation: char-pop 380ms step-end both;
+}
+
+/* Hosts that wait for a trigger: the sweep sits paused at its first
+ * frame (invisible) until the class lands, then types in. */
+.hero-kicker .decode-ch,
+.eyebrow .decode-ch,
+.footer-kicker .decode-ch {
+  animation-play-state: paused;
+}
+
+.booted .hero-kicker .decode-ch,
+.chapter.in-view .eyebrow .decode-ch,
+.footer.in-view .footer-kicker .decode-ch {
+  animation-play-state: running;
 }
 
 @keyframes char-pop {
@@ -212,18 +232,18 @@ button {
   55% {
     opacity: 1;
     background-color: transparent;
-    color: var(--muted);
+    color: currentColor;
   }
   68% {
     opacity: 0.3;
     background-color: transparent;
-    color: var(--muted);
+    color: currentColor;
   }
   80%,
   100% {
     opacity: 1;
     background-color: transparent;
-    color: var(--muted);
+    color: currentColor;
   }
 }
 
@@ -1091,30 +1111,20 @@ button {
   }
 }
 
-/* Chapter chrome flickers as its section scrolls into view, staggered
- * like lines lighting up on a console. Blurbs keep the plain fade. */
+/* Chapter chrome on section entry: the numeral and title flicker in;
+ * the coordinates eyebrow types itself (block decode, gated above).
+ * Blurbs keep the plain fade. */
 .chapter.in-view .chapter-num {
   animation: text-acquire 420ms step-end both;
-}
-
-.chapter.in-view .eyebrow {
-  animation: text-acquire 460ms step-end 70ms both;
 }
 
 .chapter.in-view h2 {
   animation: text-acquire 460ms step-end 140ms both;
 }
 
-.footer.in-view .footer-kicker {
-  animation: text-acquire 420ms step-end both;
-}
-
 /* The hero acquires the moment the boot veil lifts (App stamps .booted
- * on the layout), so the reveal reads as systems coming online. */
-.booted .hero-kicker {
-  animation: text-acquire 440ms step-end both;
-}
-
+ * on the layout): the kicker types itself in (decode, gated above),
+ * the name flickers, the scroll cue follows with a live cursor. */
 .booted .hero h1 {
   animation: text-acquire 480ms step-end 80ms both;
 }
@@ -1123,10 +1133,25 @@ button {
   animation: text-acquire 440ms step-end 220ms both;
 }
 
+.scroll-cue::after {
+  content: "_" / "";
+  margin-left: 3px;
+  color: var(--accent);
+  animation: cursor-blink 900ms step-end infinite;
+}
+
 /* Flight readout flickers in with the reveal too (it fills behind the
- * veil, so key the animation to .booted, not to :empty flipping). */
+ * veil, so key the animation to .booted, not to :empty flipping), and
+ * carries a live terminal cursor after its coordinates. */
 .booted .globe-hud:not(:empty) {
   animation: text-acquire 420ms step-end 300ms both;
+}
+
+.globe-hud:not(:empty)::after {
+  content: "_" / "";
+  margin-left: 3px;
+  color: var(--accent);
+  animation: cursor-blink 900ms step-end infinite;
 }
 
 /* Sat-photo feed syncing: overexposed, a dropout, then settled. The
@@ -1158,10 +1183,6 @@ button {
   animation: photo-sync 520ms linear 140ms both;
 }
 
-.photo-callout-title {
-  animation: text-acquire 420ms step-end 220ms both;
-}
-
 /* The active chapter chip re-flashes on every acquisition. */
 @keyframes chip-flash {
   0% {
@@ -1185,7 +1206,7 @@ button {
 
 /* Terminal cursor on the boot label. */
 .boot-label::after {
-  content: "_";
+  content: "_" / "";
   margin-left: 3px;
   color: var(--accent);
   animation: cursor-blink 900ms step-end infinite;

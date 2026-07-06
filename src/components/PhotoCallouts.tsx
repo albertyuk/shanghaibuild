@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { chapters } from "../data/chapters";
 import { formatCoordinate } from "../lib/coords";
+import { Decode } from "./Decode";
 
 interface Props {
   activeId: string | null;
@@ -78,7 +79,11 @@ export function PhotoCallouts({ activeId, reducedMotion }: Props) {
                 : undefined
             }
           >
-            <figcaption className="photo-callout-title">{pin.city}</figcaption>
+            <figcaption className="photo-callout-title">
+              {/* Decodes as the panel materializes (fresh mount per
+               * chapter, so no pause gating needed). */}
+              <Decode text={pin.city} step={40} delay={240} />
+            </figcaption>
             <div className="photo-callout-strip">
               {photos.map((photo, i) => (
                 <img
