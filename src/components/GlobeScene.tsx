@@ -149,7 +149,7 @@ const RING_CHUNK_POINTS = 12000;
 // runs carry a stroke, which makes three-globe render them as fat
 // lines (Line2) with a screen-constant PIXEL width — coasts and rivers
 // stay 1px hairlines. Slightly heavier borders read as admin lines.
-const BORDER_STROKE_PX = 1.4;
+const BORDER_STROKE_PX = 1.2;
 const PATH_STROKE = (datum: object) =>
   (datum as PathDatum).kind === "border" ? BORDER_STROKE_PX : null;
 const PATH_POINTS = (datum: object) => (datum as PathDatum).points;
@@ -367,8 +367,12 @@ export default function GlobeScene({
     const accent = cssToken("--accent");
     // Briefing-chart wireframe on paper: coastlines carry a luminous
     // halo-blue stroke; interior borders stay quiet ink admin lines.
+    // The border alpha is set low on purpose: shared segments appear in
+    // two runs and the transparent strokes compound where they overlap
+    // (1-(1-a)²), so 0.19 renders as a soft gray, not the dark slate
+    // that 0.28 compounded into.
     const coast = withAlpha(cssToken("--globe-coast"), 0.75);
-    const border = withAlpha(cssToken("--ink"), 0.28);
+    const border = withAlpha(cssToken("--ink"), 0.19);
     const arc = withAlpha(accent, 0.85);
     return {
       accent,
