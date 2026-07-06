@@ -526,18 +526,22 @@ export default function GlobeScene({
   }, [activeId, markerId, reducedMotion]);
 
   // Every active-chapter pin gets a briefing crosshair, tracked on
-  // screen each frame (desktop only — the overlay is hidden on mobile).
+  // screen each frame — every viewport; the reticle is the chapter's
+  // marker, not desktop decoration.
   const activePins = useMemo<Pin[]>(() => {
-    if (!isDesktop) return [];
     const chapter = chapters.find((ch) => ch.id === markerId);
     return chapter ? [...chapter.pins] : [];
-  }, [markerId, isDesktop]);
+  }, [markerId]);
 
   // Pins whose photo callouts get a leader line drawn to them (matches
-  // the panels PhotoCallouts renders, in the same order).
+  // the panels PhotoCallouts renders, in the same order). Desktop only:
+  // the panels those lines point at never render on mobile.
   const photoPins = useMemo<Pin[]>(
-    () => activePins.filter((pin) => pin.photos && pin.photos.length > 0).slice(0, 2),
-    [activePins],
+    () =>
+      isDesktop
+        ? activePins.filter((pin) => pin.photos && pin.photos.length > 0).slice(0, 2)
+        : [],
+    [activePins, isDesktop],
   );
 
   // Leader lines: from each callout panel's edge to its pin's projected

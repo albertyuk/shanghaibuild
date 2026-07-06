@@ -560,9 +560,18 @@ button {
 }
 
 @media (max-width: 899px) {
-  .photo-callouts,
-  .leader-lines {
+  /* No room for observation panels on a phone — but the waypoint
+   * reticles stay. Their SVG is viewport-fixed (it escapes the pane's
+   * overflow), so clip it to the sticky map pane's box: a pin projected
+   * just past the pane edge must not stamp a crosshair on the text
+   * below. No leader lines exist here (panels are desktop-only). */
+  .photo-callouts {
     display: none;
+  }
+
+  .leader-lines {
+    height: var(--globe-height-mobile);
+    overflow: hidden;
   }
 }
 
