@@ -21,14 +21,16 @@
   --hairline: rgba(160, 190, 255, 0.16); /* rules */
   --halftone-dot: rgba(46, 168, 255, 0.03); /* chapter-list strip texture */
 
-  /* Globe layers (read at runtime by the Three.js scene) */
+  /* Globe layers (read at runtime by the Three.js scene). Briefing-map
+   * look: land barely lifts off the ocean — the glowing outlines carry
+   * the map. */
   --globe-ocean: #0a1730; /* sphere base — a step above --bg so it reads */
-  --globe-land: #10203e; /* landmass fill under the wireframe lines */
+  --globe-land: #0d1a33; /* landmass fill, a whisper above the ocean */
 
-  /* Type — three families, three jobs */
-  --font-display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
-  --font-body: "Inter", system-ui, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* Type — the original two families */
+  --font-display: "EB Garamond", Georgia, "Times New Roman", serif;
+  --font-body: "EB Garamond", Georgia, "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   /* Motion — fast and slippery, with a spring for hovers */
   --ease-slip: cubic-bezier(0.16, 1, 0.3, 1);

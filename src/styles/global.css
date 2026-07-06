@@ -109,12 +109,10 @@ button {
   top: clamp(16px, 2vw, 28px);
   right: clamp(16px, 2vw, 28px);
   z-index: 20;
-  padding: 8px 16px;
-  font-family: var(--font-display);
-  font-style: italic;
-  font-weight: 700;
-  font-size: 0.85rem;
-  letter-spacing: 0.09em;
+  padding: 8px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink);
   background: transparent;
@@ -264,12 +262,10 @@ button {
 .hero h1 {
   margin: 0;
   font-family: var(--font-display);
-  font-style: italic;
-  font-weight: 700;
-  text-transform: uppercase;
+  font-weight: 500;
   font-size: clamp(3rem, 6vw, 4.6rem);
   line-height: 1.02;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.02em;
   color: var(--ink);
 }
 
@@ -330,26 +326,25 @@ button {
   transform-origin: left center;
 }
 
-/* The P3 date-block: a big condensed-italic numeral behind an accent
- * slash. One of the two sanctioned skewed elements outside the chrome. */
+/* The mission-number block: a briefing-scale mono numeral behind an
+ * accent slash. One of the two sanctioned skewed elements outside the
+ * chrome. */
 .chapter-num {
-  margin: 0 0 12px;
+  margin: 0 0 14px;
   display: flex;
   align-items: center;
   gap: 12px;
-  font-family: var(--font-display);
-  font-style: italic;
-  font-weight: 700;
-  font-size: 2.6rem;
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
   line-height: 1;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   color: var(--ink);
 }
 
 .chapter-num::before {
   content: "";
   width: 3px;
-  height: 2.2rem;
+  height: 1.4rem;
   background: var(--accent);
   transform: skewX(var(--skew));
 }
@@ -381,12 +376,10 @@ button {
 .chapter h2 {
   margin: 0 0 12px;
   font-family: var(--font-display);
-  font-style: italic;
-  font-weight: 700;
-  text-transform: uppercase;
+  font-weight: 500;
   font-size: clamp(1.7rem, 2.4vw, 2.2rem);
   line-height: 1.12;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.01em;
   color: var(--ink);
 }
 

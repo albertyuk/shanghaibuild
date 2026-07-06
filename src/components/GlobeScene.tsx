@@ -72,6 +72,8 @@ const IDLE_ROTATE_SPEED = 0.35;
 /** Draw-in timings — the slow reveal for arcs and pins. */
 const ARC_ENTER_MS = 700;
 const PIN_ENTER_MS = 500;
+/** The briefing-map graticule: faint electric grid over the whole map. */
+const GRID_OPACITY = 0.15;
 
 // Stable identity matters: a new accessor function per render would make
 // three-globe tear down and re-tessellate every land polygon. A null side
@@ -216,21 +218,26 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
 
   const palette = useMemo(() => {
     const accent = cssToken("--accent");
-    // The glowing wireframe: coastlines burn a step brighter than the
-    // interior country borders.
-    const coast = withAlpha(accent, 0.6);
-    const border = withAlpha(accent, 0.45);
+    const accentHot = cssToken("--accent-hot");
+    // Briefing-map wireframe: coastlines burn bright over near-black
+    // land; interior borders stay quiet admin lines.
+    const coast = withAlpha(accentHot, 0.8);
+    const border = withAlpha(accent, 0.35);
+    const ring = accent;
     return {
       accent,
-      accentHot: cssToken("--accent-hot"),
+      accentHot,
       bg: cssToken("--bg"),
       ocean: cssToken("--globe-ocean"),
       land: cssToken("--globe-land"),
+      grid: withAlpha(accent, 0.15),
       // Per-datum accessor props run through accessor-fn, which treats a
       // plain string as a property name — colors there must be functions.
       // Memoized once, so layers never re-digest over accessor identity.
       pathColorAccessor: (datum: object) =>
         (datum as PathDatum).kind === "border" ? border : coast,
+      // Radar rings fade as they propagate outward.
+      ringColorAccessor: () => (t: number) => withAlpha(ring, 0.4 * (1 - t)),
     };
   }, []);
 
@@ -409,6 +416,15 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
     }));
   }, [activeId]);
 
+  // Radar rings sweep out from the active chapter's pins — the briefing
+  // map's operation-zone pulse. Inherently ambient, so reduced motion
+  // gets none at all.
+  const rings = useMemo<{ lat: number; lng: number }[]>(() => {
+    if (reducedMotion) return [];
+    const chapter = chapters.find((ch) => ch.id === activeId);
+    return chapter ? chapter.pins.map((pin) => ({ lat: pin.lat, lng: pin.lng })) : [];
+  }, [activeId, reducedMotion]);
+
   // Idle rotate: desktop hero only, killed permanently on first scroll.
   const applyAutoRotate = useCallback(() => {
     const globe = globeRef.current;
@@ -448,6 +464,27 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
     controls.enableZoom = false; // the wheel keeps scrolling the page
     controls.enablePan = false;
     globe.pointOfView(HERO_POV, 0);
+    // The 10° graticule ships as one LineSegments with a hard-coded
+    // lightgrey material at exactly globe radius (it would z-fight the
+    // ocean sphere and hide under the land caps). Lift it above the map
+    // layers, recolor it to the faint electric grid, and horizon-clip it
+    // like everything else. It is the scene's only LineSegments at mount.
+    globe.scene().traverse((obj) => {
+      if ((obj as { type?: string }).type !== "LineSegments") return;
+      const seg = obj as unknown as {
+        scale: { setScalar: (s: number) => void };
+        material: {
+          color: { set: (c: string) => void };
+          opacity: number;
+          needsUpdate: boolean;
+        };
+      };
+      seg.scale.setScalar(1.013);
+      seg.material.color.set(palette.accent);
+      seg.material.opacity = GRID_OPACITY;
+      clipBehindHorizon(seg.material as unknown as Parameters<typeof clipBehindHorizon>[0]);
+      seg.material.needsUpdate = true;
+    });
     // Pins float above the land caps, so far-side pins would peek past
     // the limb as stray specks — clip them like the land. Their objects
     // exist by now (points data is set at construction and never changes)
@@ -462,7 +499,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
       }
     }
     setReady(true);
-  }, [globeMounted, ready, points]);
+  }, [globeMounted, ready, points, palette]);
 
   // Pixel ratio cap: 1.5 on mobile, 2 on desktop.
   useEffect(() => {
@@ -662,10 +699,17 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           arcEndLng={(d) => (d as ArcDatum).endLng}
           arcColor={() => palette.accent}
           arcStroke={0.45}
-          arcDashLength={reducedMotion ? 1 : 0.35}
-          arcDashGap={reducedMotion ? 0 : 0.5}
-          arcDashAnimateTime={reducedMotion ? 0 : 1500}
+          arcDashLength={reducedMotion ? 1 : 0.25}
+          arcDashGap={reducedMotion ? 0 : 0.35}
+          arcDashAnimateTime={reducedMotion ? 0 : 1200}
           arcsTransitionDuration={reducedMotion ? 0 : ARC_ENTER_MS}
+          showGraticules={true}
+          ringsData={rings}
+          ringColor={palette.ringColorAccessor}
+          ringMaxRadius={4}
+          ringPropagationSpeed={1.2}
+          ringRepeatPeriod={1500}
+          ringAltitude={0.0135}
           onZoom={handleZoom}
           rendererConfig={{ antialias: true, alpha: true }}
           // No tooltips or click targets on the globe — disabling the
