@@ -31,7 +31,18 @@ export default function App() {
   // failsafe so a stalled fetch can never trap the visitor behind it.
   const [booted, setBooted] = useState(false);
   const [bootLeaving, setBootLeaving] = useState(false);
+  // The veil's progress bar is written straight to the DOM as the map
+  // chunks commit — no React re-renders at streaming rate.
+  const bootBarRef = useRef<HTMLDivElement | null>(null);
+  const bootProgress = useCallback((done: number, total: number) => {
+    const bar = bootBarRef.current;
+    if (bar) bar.style.transform = `scaleX(${total > 0 ? done / total : 1})`;
+  }, []);
   const bootDone = useCallback(() => {
+    // However we got here (stream finished or failsafe), leave with a
+    // full bar rather than freezing mid-fill under the fade.
+    const bar = bootBarRef.current;
+    if (bar) bar.style.transform = "scaleX(1)";
     setBooted((already) => {
       if (!already) {
         setBootLeaving(true);
@@ -141,6 +152,9 @@ export default function App() {
               <circle r={1.5} />
             </svg>
             <p className="boot-label">{site.loadingLabel}</p>
+            <div className="boot-progress" aria-hidden="true">
+              <div className="boot-progress-fill" ref={bootBarRef} />
+            </div>
           </div>
         </div>
       )}
@@ -170,6 +184,7 @@ export default function App() {
                 reducedMotion={reducedMotion}
                 diving={diving}
                 onLoaded={bootDone}
+                onProgress={bootProgress}
               />
             </Suspense>
           </GlobeErrorBoundary>

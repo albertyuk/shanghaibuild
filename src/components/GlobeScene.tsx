@@ -14,6 +14,9 @@ interface Props {
   /** Fired once, when the map has fully streamed in (or there was
    *  nothing to stream) — the app drops its boot veil on this. */
   onLoaded?: () => void;
+  /** Streaming progress: chunks committed out of the total plan. Fired
+   *  once per chunk — the boot veil's progress bar reads this. */
+  onProgress?: (done: number, total: number) => void;
 }
 
 interface PointDatum {
@@ -238,7 +241,14 @@ const nearestLng = (lng: number, ref: number) => lng - 360 * Math.round((lng - r
  *  lingers to play its exit before the next chapter's set keys in. */
 const MARKER_LEAVE_MS = 220;
 
-export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving, onLoaded }: Props) {
+export default function GlobeScene({
+  activeId,
+  isDesktop,
+  reducedMotion,
+  diving,
+  onLoaded,
+  onProgress,
+}: Props) {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const hudRef = useRef<HTMLDivElement | null>(null);
@@ -246,10 +256,12 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving,
   const [ready, setReady] = useState(false);
   const hasScrolled = useRef(false);
 
-  // The loaded signal fires exactly once. A ref carries the latest
-  // callback into the one-shot streaming effect below.
+  // The loaded signal fires exactly once. Refs carry the latest
+  // callbacks into the one-shot streaming effect below.
   const onLoadedRef = useRef(onLoaded);
   onLoadedRef.current = onLoaded;
+  const onProgressRef = useRef(onProgress);
+  onProgressRef.current = onProgress;
   const loadedFired = useRef(false);
   const fireLoaded = useCallback(() => {
     if (loadedFired.current) return;
@@ -397,6 +409,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving,
           }
         });
         if (!plan.length) {
+          onProgressRef.current?.(1, 1);
           fireLoaded();
           return;
         }
@@ -406,6 +419,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving,
           if (cancelled) return;
           plan[step]();
           step += 1;
+          onProgressRef.current?.(step, plan.length);
           if (step < plan.length) {
             frame = requestAnimationFrame(feedChunk);
           } else {

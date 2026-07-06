@@ -173,6 +173,24 @@ button {
   color: var(--muted);
 }
 
+/* Map-stream progress: a hairline track whose accent fill scales with
+ * committed chunks (written to the DOM from the globe scene). The
+ * transition smooths the per-chunk steps into one continuous sweep. */
+.boot-progress {
+  width: 164px;
+  height: 2px;
+  background: var(--hairline);
+  overflow: hidden;
+}
+
+.boot-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 200ms var(--ease-slip);
+}
+
 /* ---------- "Down to earth" toggle ---------- */
 
 /* The P3 button: a parallelogram with one clipped corner, hairline at
