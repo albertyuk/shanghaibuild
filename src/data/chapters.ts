@@ -55,8 +55,10 @@ export const chapters: Chapter[] = [
     dates: "Jun – Aug 2026",
     blurb:
       "Built agentic AI workflows in Dify and Apify that automate competitive brand research and influencer evaluation across SHEIN's portfolio of 10+ sub-brands, cutting multi-day manual research to minutes per brand. Shipped bilingual report generation with live web-search grounding and anti-fabrication guardrails, plus an end-to-end Instagram intelligence pipeline that turns captions and engagement metrics into structured spreadsheets.",
-    pins: [{ city: "Shanghai", country: "China", lat: 31.2304, lng: 121.4737, photos: [{ src: "/photos/2026-07-06-1.44.51.webp" }] }],
-    altitude: 0.45,
+    // Placeholder office location (Caohejing tech district) — drag to
+    // the real building in /edit.html or type exact coordinates.
+    pins: [{ city: "Caohejing · Shanghai", country: "China", lat: 31.1727, lng: 121.3947, photos: [{ src: "/photos/2026-07-06-1.44.51.webp" }] }],
+    altitude: 0.035,
   },
   {
     id: "chenman",
@@ -66,8 +68,10 @@ export const chapters: Chapter[] = [
     dates: "May – Jun 2025",
     blurb:
       "Assisted photographer Chen Man on roughly 20 commercial fashion shoots — lighting setups, on-set production logistics, and shoot scheduling.",
-    pins: [{ city: "Shanghai", country: "China", lat: 31.2304, lng: 121.4737 }],
-    altitude: 0.4,
+    // Placeholder studio location (West Bund riverside arts district)
+    // — drag to the real studio in /edit.html or type coordinates.
+    pins: [{ city: "West Bund · Shanghai", country: "China", lat: 31.169, lng: 121.456 }],
+    altitude: 0.022,
     link: "https://www.yukalbert.com/photograph",
   },
   {
@@ -165,6 +169,6 @@ export const site = {
   earthUp: "Back to orbit",
   loadingLabel: "Plotting the atlas",
   footerNote:
-    "Single static page. The globe is drawn locally from vector coastlines; nothing on this site tracks you.",
+    "Single static page. The globe is drawn locally from vector data (Natural Earth; river detail © OpenStreetMap contributors); nothing on this site tracks you.",
   skipLinkLabel: "Skip to chapters",
 };

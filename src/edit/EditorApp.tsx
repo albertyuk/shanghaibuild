@@ -114,8 +114,8 @@ function validate(chapters: EditableChapter[], site: SiteContent): string[] {
       if (Math.abs(pin.lat) > 90) errors.push(`${label}, pin ${p + 1}: lat out of range.`);
       if (Math.abs(pin.lng) > 180) errors.push(`${label}, pin ${p + 1}: lng out of range.`);
     });
-    if (chapter.altitude < 0.05 || chapter.altitude > 3) {
-      errors.push(`${label}: altitude should be between 0.05 and 3.`);
+    if (chapter.altitude < 0.01 || chapter.altitude > 3) {
+      errors.push(`${label}: altitude should be between 0.01 and 3.`);
     }
     if (chapter.link && !/^https?:\/\//i.test(chapter.link)) {
       errors.push(`${label}: link must start with https://.`);
@@ -703,11 +703,11 @@ export function EditorApp() {
             )}
             {textField("Blurb", chapter.blurb, (v) => patchChapter(i, { blurb: v }), true)}
             <label className="field">
-              <span>Camera altitude (0.05 close – 3 far)</span>
+              <span>Camera altitude (0.01 street – 3 far)</span>
               <input
                 type="number"
-                step="0.05"
-                min="0.05"
+                step="0.001"
+                min="0.01"
                 max="3"
                 value={chapter.altitude}
                 onChange={(e) =>

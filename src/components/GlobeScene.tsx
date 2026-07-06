@@ -38,6 +38,7 @@ interface GlobeControls {
   autoRotateSpeed: number;
   enableZoom: boolean;
   enablePan: boolean;
+  enableDamping: boolean;
 }
 
 /*
@@ -55,6 +56,10 @@ const LAND_TILES_URL = "/geo/land-tiles.json";
 const COAST_RINGS_URL = "/geo/land-rings.json";
 const BORDERS_URL = "/geo/land-borders.json";
 const TERRAIN_URL = "/geo/terrain.json";
+/** City-scale detail around every chapter pin: urban footprints
+ *  (Natural Earth 10m) and the Shanghai rivers (OSM Huangpu + NE
+ *  Suzhou Creek) — what makes a dive into a city read as that city. */
+const CITY_DETAIL_URL = "/geo/city-detail.json";
 
 /** Opening view: wide over Asia, where five of the six chapters happened. */
 const HERO_POV = { lat: 26, lng: 106, altitude: 2.4 };
@@ -74,9 +79,10 @@ const TOUR_OVERVIEW_MS = 1800;
 /** Waypoints confirm on final approach: the lock-on flicker fires this
  *  far before the camera actually arrives at the pin. */
 const LOCK_LEAD_MS = 700;
-/** The "down to earth" plunge. */
+/** The "down to earth" plunge — deep enough that the city-detail layer
+ *  (urban wash, rivers) fills the frame before the words take over. */
 const DIVE_MS = 900;
-const DIVE_ALTITUDE = 0.03;
+const DIVE_ALTITUDE = 0.012;
 const IDLE_ROTATE_SPEED = 0.35;
 /** Draw-in timings — the slow reveal for arcs and pins. */
 const ARC_ENTER_MS = 700;
@@ -99,6 +105,8 @@ interface LandPolygon {
   geometry: { type: "Polygon"; coordinates: number[][][] };
   /** Lakes: filled with the ocean wash instead of land white. */
   water?: boolean;
+  /** Urban footprints: a faint accent wash over the land. */
+  urban?: boolean;
 }
 
 /** A run of [lng, lat] points: a coastline, lake shore, or border. */
@@ -141,7 +149,12 @@ const ARC_START_LAT = (d: object) => (d as ArcDatum).startLat;
 const ARC_START_LNG = (d: object) => (d as ArcDatum).startLng;
 const ARC_END_LAT = (d: object) => (d as ArcDatum).endLat;
 const ARC_END_LNG = (d: object) => (d as ArcDatum).endLng;
-// Layer altitudes: land 0.007, lake fills 0.010, lines 0.012. The gaps
+// Dot radii (angular degrees) per zoom bucket: globe → region → country
+// → city. The active dot ends tiny — inside its reticle — at city zoom.
+const ACTIVE_DOT_RADIUS = [0.14, 0.077, 0.035, 0.004];
+const INACTIVE_DOT_RADIUS = [0.22, 0.121, 0.055, 0.011];
+// Layer altitudes: land 0.007, urban wash 0.0085, lake fills 0.010,
+// lines 0.012. The gaps
 // are sized to real error budgets, not taste: lakes are perimeter-only
 // triangulations (too small for the 5° interior grid), so Lake Superior's
 // widest triangles sag ~0.0006·R below the lake shell — a smaller gap
@@ -149,8 +162,10 @@ const ARC_END_LNG = (d: object) => (d as ArcDatum).endLng;
 // Superior) poke white through the fill. And at hero distance one depth-
 // buffer LSB is ~0.0007·R, so sub-LSB gaps would z-fight; these gaps keep
 // every pair of layers several LSBs apart.
-const POLYGON_ALTITUDE = (polygon: object) =>
-  (polygon as LandPolygon).water ? 0.01 : 0.007;
+const POLYGON_ALTITUDE = (polygon: object) => {
+  const p = polygon as LandPolygon;
+  return p.water ? 0.01 : p.urban ? 0.0085 : 0.007;
+};
 const LINE_ALTITUDE = 0.012;
 
 /** three-globe's internal globe radius. */
@@ -192,11 +207,15 @@ function clipBehindHorizon<T extends { onBeforeCompile: unknown; customProgramCa
         `void main() {\n\tif (dot(normalize(vGlobePos), normalize(cameraPosition)) < ${GLOBE_RADIUS.toFixed(1)} / length(cameraPosition) - 0.005) discard;`,
       );
     if (stipple) {
+      // The dot grid fades out as the camera drops toward city scale —
+      // its ~0.75° cells would read as giant blobs over a 100km view.
+      // Camera length is R·(1+altitude), so 108→122 spans alt 0.08→0.22.
       shader.fragmentShader = shader.fragmentShader.replace(
         "#include <opaque_fragment>",
         `vec3 spN = normalize(vGlobePos);
 \tvec2 spCell = fract(vec2(atan(spN.z, spN.x), asin(clamp(spN.y, -1.0, 1.0))) * ${STIPPLE_CELLS_PER_RAD.toFixed(2)}) - 0.5;
-\toutgoingLight *= vec3(1.0) - ${STIPPLE_TINT} * (1.0 - smoothstep(0.12, 0.3, length(spCell)));
+\tfloat spNear = smoothstep(108.0, 122.0, length(cameraPosition));
+\toutgoingLight *= vec3(1.0) - ${STIPPLE_TINT} * spNear * (1.0 - smoothstep(0.12, 0.3, length(spCell)));
 \t#include <opaque_fragment>`,
       );
     }
@@ -325,10 +344,22 @@ export default function GlobeScene({
     () => clipBehindHorizon(new MeshBasicMaterial({ color: palette.ocean })),
     [palette],
   );
+  // Urban footprints: a whisper of accent over the paper — enough to
+  // read a city's shape at dive altitude without shouting at globe
+  // scale, where the footprints are specks anyway.
+  const urbanMaterial = useMemo(
+    () =>
+      clipBehindHorizon(
+        new MeshBasicMaterial({ color: palette.accent, transparent: true, opacity: 0.08 }),
+      ),
+    [palette],
+  );
   const capMaterialAccessor = useMemo(
-    () => (polygon: object) =>
-      (polygon as LandPolygon).water ? lakeMaterial : landMaterial,
-    [lakeMaterial, landMaterial],
+    () => (polygon: object) => {
+      const p = polygon as LandPolygon;
+      return p.water ? lakeMaterial : p.urban ? urbanMaterial : landMaterial;
+    },
+    [lakeMaterial, landMaterial, urbanMaterial],
   );
 
   // Land tiles, coastline rings, and country borders, fetched from this
@@ -348,18 +379,20 @@ export default function GlobeScene({
       fetchJson(COAST_RINGS_URL),
       fetchJson(BORDERS_URL),
       fetchJson(TERRAIN_URL),
+      fetchJson(CITY_DETAIL_URL),
     ]).then(
-      ([tilesGeo, ringsData, bordersData, terrainData]: [
+      ([tilesGeo, ringsData, bordersData, terrainData, cityData]: [
         { features?: LandPolygon[] } | null,
         { rings?: LineRun[] } | null,
         { borders?: LineRun[] } | null,
         { lakes?: number[][][][]; lakeRings?: LineRun[] } | null,
+        { urban?: number[][][][]; rivers?: LineRun[] } | null,
       ]) => {
         if (cancelled) return;
         const tiles = (tilesGeo?.features ?? [])
           .slice()
           .sort((a, b) => tileVertices(b) - tileVertices(a));
-        // Lakes stream after the land they sit on.
+        // Lakes and urban washes stream after the land they sit on.
         const polys: LandPolygon[] = [
           ...tiles,
           ...(terrainData?.lakes ?? []).map(
@@ -370,11 +403,21 @@ export default function GlobeScene({
               water: true,
             }),
           ),
+          ...(cityData?.urban ?? []).map(
+            (coordinates): LandPolygon => ({
+              type: "Feature",
+              properties: {},
+              geometry: { type: "Polygon", coordinates },
+              urban: true,
+            }),
+          ),
         ];
         const lines: PathDatum[] = [
           ...(ringsData?.rings ?? []).map((points): PathDatum => ({ points, kind: "coast" })),
           ...(bordersData?.borders ?? []).map((points): PathDatum => ({ points, kind: "border" })),
           ...(terrainData?.lakeRings ?? []).map((points): PathDatum => ({ points, kind: "coast" })),
+          // City rivers draw like coasts — they're water edges too.
+          ...(cityData?.rivers ?? []).map((points): PathDatum => ({ points, kind: "coast" })),
         ];
 
         // One state update per plan step. Order is the page's visual
@@ -480,6 +523,16 @@ export default function GlobeScene({
   // option, so capture the reduced-motion preference at mount.
   const animateIn = useRef(!reducedMotion);
 
+  // Map dots shrink as the camera drops: pointRadius is angular
+  // (degrees on the globe), so the 0.22° dot that reads as a pin at
+  // globe scale would be a 24km blob swallowing a city view. Coarse
+  // buckets keep the digest churn to a handful per flight. At the city
+  // bucket the ACTIVE dot all but vanishes — the reticle is the marker
+  // there, and a fat dot underneath would swallow its diamond — while
+  // neighbor pins stay as small readable blobs.
+  const [dotBucket, setDotBucket] = useState(0);
+  const dotBucketRef = useRef(0);
+
   // Active-chapter styling for the flat map dots. Memoized per chapter
   // change — identity churn here would re-digest the points layer on
   // every render (and renders come one per chunk while the map streams).
@@ -489,8 +542,11 @@ export default function GlobeScene({
     [activeId, palette],
   );
   const pointRadiusAccessor = useMemo(
-    () => (d: object) => ((d as PointDatum).chapterId === activeId ? 0.14 : 0.22),
-    [activeId],
+    () => (d: object) =>
+      (d as PointDatum).chapterId === activeId
+        ? ACTIVE_DOT_RADIUS[dotBucket]
+        : INACTIVE_DOT_RADIUS[dotBucket],
+    [activeId, dotBucket],
   );
 
   // Arcs exist only while their chapter is active. Arc endpoints are
@@ -668,6 +724,11 @@ export default function GlobeScene({
     const controls = globe.controls() as unknown as GlobeControls;
     controls.enableZoom = false; // the wheel keeps scrolling the page
     controls.enablePan = false;
+    // No inertia: with damping on, the idle auto-rotate leaves residual
+    // angular velocity in the controls that keeps steering the camera
+    // for seconds AFTER a flight lands — a drift measured in degrees,
+    // fatal at city zoom where 2° is the whole metro area.
+    controls.enableDamping = false;
     globe.pointOfView(HERO_POV, 0);
     // The 10° graticule ships as one LineSegments with a hard-coded
     // lightgrey material at exactly globe radius (it would z-fight the
@@ -884,12 +945,21 @@ export default function GlobeScene({
   }, [diving, ready, activeId, reducedMotion]);
 
   // Flight-instrument readout: written straight to the DOM on every
-  // camera move — no React re-renders at 60fps.
+  // camera move — no React re-renders at 60fps. The dot-scale bucket
+  // rides the same callback; it only touches state when the bucket
+  // actually flips.
   const handleZoom = useCallback((pov: { lat: number; lng: number; altitude: number }) => {
     const hud = hudRef.current;
-    if (!hud) return;
-    const km = Math.max(0, Math.round(pov.altitude * 6371));
-    hud.textContent = `${formatCoordinate(pov.lat, nearestLng(pov.lng, 0))} · ${km} km`;
+    if (hud) {
+      const km = Math.max(0, Math.round(pov.altitude * 6371));
+      hud.textContent = `${formatCoordinate(pov.lat, nearestLng(pov.lng, 0))} · ${km} km`;
+    }
+    const alt = pov.altitude;
+    const bucket = alt > 1.2 ? 0 : alt > 0.5 ? 1 : alt > 0.15 ? 2 : 3;
+    if (bucket !== dotBucketRef.current) {
+      dotBucketRef.current = bucket;
+      setDotBucket(bucket);
+    }
   }, []);
 
   return (
