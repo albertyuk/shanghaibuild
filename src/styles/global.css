@@ -235,7 +235,8 @@ button {
 
 /* Sat-photo panels for the active chapter's pins, stacked under the
  * pane's top corner tick. Rendered only when a pin has photo slots
- * filled. */
+ * filled. Each panel materializes — a wipe following its leader line's
+ * draw — rather than popping in. */
 .photo-callouts {
   position: fixed;
   top: 44px;
@@ -245,47 +246,58 @@ button {
   flex-direction: column;
   gap: 14px;
   width: min(230px, 22vw);
-  animation: callout-in 240ms var(--ease-slip);
-}
-
-@keyframes callout-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
 }
 
 .photo-callout {
   margin: 0;
-  padding: 8px;
   background: var(--bg);
   border: 1px solid var(--hairline);
-  border-left: 2px solid var(--accent);
+  animation: callout-materialize 360ms var(--ease-slip) 240ms both;
 }
 
+.photo-callout:nth-child(2) {
+  animation-delay: 360ms;
+}
+
+@keyframes callout-materialize {
+  from {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* Title bar: the observation panel's header strip. */
 .photo-callout-title {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 10px;
-  margin: 0 0 7px;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 6px 8px;
   font-family: var(--font-mono);
   font-size: 0.6rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink);
+  background: var(--surface);
+  border-bottom: 1px solid var(--hairline);
 }
 
-.photo-callout-coords {
-  color: var(--accent);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.photo-callout-title::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  flex: none;
 }
 
 .photo-callout-strip {
   display: flex;
   gap: 6px;
+  padding: 8px 8px 0;
 }
 
 /* Recon-photo desaturation: images read as satellite stills. */
@@ -298,23 +310,77 @@ button {
   filter: saturate(0.25) contrast(1.05);
 }
 
+/* Data strip: real coordinates + country, like the readout rows under
+ * the reference's observation stills. */
+.photo-callout-data {
+  margin: 7px 8px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .photo-callout-caption {
-  margin: 7px 0 0;
+  margin: 0 8px 8px;
   font-family: var(--font-mono);
   font-size: 0.6rem;
   letter-spacing: 0.04em;
   color: var(--muted);
 }
 
-@media (max-width: 899px) {
-  .photo-callouts {
-    display: none;
+/* Leader lines from panel edge to pin, aimed per-frame from the globe
+ * scene. Draw on from the panel outward; the terminal ring fades in. */
+.leader-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.leader-lines polyline {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1;
+  opacity: 0.7;
+  stroke-dasharray: 1;
+  animation: leader-draw 300ms var(--ease-slip) both;
+}
+
+.leader-lines circle {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1;
+  animation: leader-dot 200ms var(--ease-slip) 240ms both;
+}
+
+@keyframes leader-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .photo-callouts {
-    animation: none;
+@keyframes leader-dot {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.9;
+  }
+}
+
+@media (max-width: 899px) {
+  .photo-callouts,
+  .leader-lines {
+    display: none;
   }
 }
 
@@ -715,11 +781,14 @@ button {
     transition: none;
   }
 
-  /* Every hover/entry transition collapses to instant. */
+  /* Every hover/entry transition and reveal animation collapses to
+   * instant. */
   *,
   *::before,
   *::after {
     transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
   }
 }
 

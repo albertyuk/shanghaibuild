@@ -295,35 +295,37 @@ button.ghost.danger:hover:not(:disabled) {
 .photo-callout {
   margin: 0;
   width: 230px;
-  padding: 8px;
   background: var(--bg);
   border: 1px solid var(--hairline);
-  border-left: 2px solid var(--accent);
 }
 
 .photo-callout-title {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 10px;
-  margin: 0 0 7px;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 6px 8px;
   font-family: var(--font-mono);
   font-size: 0.6rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink);
+  background: var(--surface);
+  border-bottom: 1px solid var(--hairline);
 }
 
-.photo-callout-coords {
-  color: var(--accent);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.photo-callout-title::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  flex: none;
 }
 
 .photo-callout-strip {
   display: flex;
   gap: 6px;
+  padding: 8px 8px 0;
 }
 
 .photo-callout img {
@@ -335,8 +337,19 @@ button.ghost.danger:hover:not(:disabled) {
   filter: saturate(0.25) contrast(1.05);
 }
 
+.photo-callout-data {
+  margin: 7px 8px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .photo-callout-caption {
-  margin: 7px 0 0;
+  margin: 0 8px 8px;
   font-family: var(--font-mono);
   font-size: 0.6rem;
   letter-spacing: 0.04em;
@@ -344,7 +357,7 @@ button.ghost.danger:hover:not(:disabled) {
 }
 
 .preview-pending {
-  margin: 7px 0 0;
+  margin: 0 8px 8px;
   font-family: var(--font-mono);
   font-size: 0.6rem;
   letter-spacing: 0.04em;

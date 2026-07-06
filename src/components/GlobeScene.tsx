@@ -446,6 +446,68 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
     return chapter ? chapter.pins.map((pin) => ({ lat: pin.lat, lng: pin.lng })) : [];
   }, [activeId, reducedMotion]);
 
+  // Pins whose photo callouts get a leader line drawn to them (matches
+  // the panels PhotoCallouts renders, in the same order).
+  const photoPins = useMemo<Pin[]>(() => {
+    if (!isDesktop) return [];
+    const chapter = chapters.find((ch) => ch.id === activeId);
+    return chapter
+      ? chapter.pins.filter((pin) => pin.photos && pin.photos.length > 0).slice(0, 2)
+      : [];
+  }, [activeId, isDesktop]);
+
+  // Leader lines: from each callout panel's edge to its pin's projected
+  // screen position, re-aimed every frame (the camera is usually moving,
+  // and panel heights settle as images load). Written straight to the
+  // SVG DOM — no React work at frame rate. Lines vanish while their pin
+  // is past the horizon, using the same test as the fragment clip.
+  const leaderRef = useRef<SVGSVGElement | null>(null);
+  useEffect(() => {
+    const svg = leaderRef.current;
+    if (!ready || !svg || !photoPins.length) return;
+    let frame = 0;
+    const update = () => {
+      frame = requestAnimationFrame(update);
+      const globe = globeRef.current;
+      if (!globe) return;
+      const cam = globe.camera().position;
+      const camLen = Math.hypot(cam.x, cam.y, cam.z) || 1;
+      const horizon = GLOBE_RADIUS / camLen - 0.005;
+      const panels = document.querySelectorAll<HTMLElement>(".photo-callout");
+      const lines = svg.querySelectorAll<SVGPolylineElement>("polyline");
+      const dots = svg.querySelectorAll<SVGCircleElement>("circle");
+      photoPins.forEach((pin, i) => {
+        const line = lines[i];
+        const dot = dots[i];
+        const panel = panels[i];
+        if (!line || !dot) return;
+        const pos = globe.getCoords(pin.lat, pin.lng, 0.06);
+        const posLen = Math.hypot(pos.x, pos.y, pos.z) || 1;
+        const facing =
+          (pos.x * cam.x + pos.y * cam.y + pos.z * cam.z) / (posLen * camLen);
+        if (!panel || facing < horizon) {
+          line.style.visibility = "hidden";
+          dot.style.visibility = "hidden";
+          return;
+        }
+        const screen = globe.getScreenCoords(pin.lat, pin.lng, 0.06);
+        const rect = panel.getBoundingClientRect();
+        const ax = rect.right;
+        const ay = rect.top + rect.height / 2;
+        line.setAttribute(
+          "points",
+          `${ax},${ay} ${ax + 26},${ay} ${screen.x},${screen.y}`,
+        );
+        dot.setAttribute("cx", String(screen.x));
+        dot.setAttribute("cy", String(screen.y));
+        line.style.visibility = "visible";
+        dot.style.visibility = "visible";
+      });
+    };
+    frame = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(frame);
+  }, [ready, photoPins]);
+
   // Idle rotate: desktop hero only, killed permanently on first scroll.
   const applyAutoRotate = useCallback(() => {
     const globe = globeRef.current;
@@ -675,6 +737,21 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
   return (
     <div ref={containerRef} className="globe-canvas">
       <div ref={hudRef} className="globe-hud" aria-hidden="true" />
+      {photoPins.length > 0 && (
+        <svg
+          ref={leaderRef}
+          className="leader-lines"
+          key={activeId ?? "none"}
+          aria-hidden="true"
+        >
+          {photoPins.map((pin, i) => (
+            <g key={`${pin.lat},${pin.lng}`}>
+              <polyline pathLength={1} style={{ animationDelay: `${i * 120}ms` }} />
+              <circle r={3.5} style={{ animationDelay: `${i * 120}ms` }} />
+            </g>
+          ))}
+        </svg>
+      )}
       {size.width > 0 && size.height > 0 && (
         <Globe
           ref={globeRef}

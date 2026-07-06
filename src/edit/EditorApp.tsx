@@ -312,12 +312,7 @@ export function EditorApp() {
                 );
                 return (
                   <figure className="photo-callout" key={p}>
-                    <figcaption className="photo-callout-title">
-                      <span className="photo-callout-place">{pin.city}</span>
-                      <span className="photo-callout-coords">
-                        {formatCoordinate(pin.lat, pin.lng)}
-                      </span>
-                    </figcaption>
+                    <figcaption className="photo-callout-title">{pin.city}</figcaption>
                     <div className="photo-callout-strip">
                       {photos.map((photo, j) => (
                         <img
@@ -327,6 +322,9 @@ export function EditorApp() {
                         />
                       ))}
                     </div>
+                    <p className="photo-callout-data">
+                      {formatCoordinate(pin.lat, pin.lng)} · {pin.country.toUpperCase()}
+                    </p>
                     {captions.length > 0 && (
                       <p className="photo-callout-caption">{captions.join(" · ")}</p>
                     )}
