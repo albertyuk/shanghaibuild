@@ -57,7 +57,7 @@ const FLIGHT_DEBOUNCE_MS = 160;
 /** Multi-pin chapters tour their pins: fly, dwell, fly on. A leg's
  *  duration grows with its length, so short hops don't crawl and ocean
  *  crossings don't whip. */
-const TOUR_LEG_MS = 1500;
+const TOUR_LEG_MS = 1600;
 const TOUR_DWELL_MS = 700;
 /** Mid-leg climb per radian of leg length: long crossings rise for
  *  context, neighboring cities stay low. */
@@ -429,10 +429,10 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
     let frame = 0;
     let cancelled = false;
 
-    // Quintic in-out: a hard launch, a fast cruise, a confident glide to
-    // a stop — decisive, not floaty.
+    // Cubic in-out: smooth acceleration and a gentle settle — quintic
+    // read as too abrupt.
     const easeInOut = (t: number) =>
-      t < 0.5 ? 16 * t ** 5 : 1 - (-2 * t + 2) ** 5 / 2;
+      t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
     const smoothstep = (t: number) => t * t * (3 - 2 * t);
     // Aircraft altitude profile: climb out over the first third, hold
     // cruise, descend on final — not a symmetric balloon hop.
