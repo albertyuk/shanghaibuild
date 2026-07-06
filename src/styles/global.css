@@ -360,12 +360,40 @@ button {
   animation: leader-draw 300ms var(--ease-slip) both;
 }
 
-/* The briefing crosshair: a plus with a gapped center. */
-.leader-lines .leader-cross {
+/* The waypoint reticle: diamond outline, outer ticks, center dot. It
+ * arrives with a lock-on — scaling down onto its target as it fades in. */
+.leader-lines .waypoint-mark {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: waypoint-lock 320ms var(--ease-slip) both;
+}
+
+.leader-lines .wp-diamond {
   fill: none;
   stroke: var(--accent);
   stroke-width: 1.2;
-  animation: leader-dot 200ms var(--ease-slip) both;
+}
+
+.leader-lines .wp-ticks {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1;
+  opacity: 0.75;
+}
+
+.leader-lines .wp-dot {
+  fill: var(--accent);
+}
+
+@keyframes waypoint-lock {
+  from {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes leader-draw {

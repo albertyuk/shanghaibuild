@@ -74,8 +74,10 @@ const ARC_ENTER_MS = 700;
 const PIN_ENTER_MS = 500;
 /** The briefing-map graticule: faint electric grid over the whole map. */
 const GRID_OPACITY = 0.14;
-/** Active pins rise to this altitude; crosshairs track the needle tip. */
-const NEEDLE_ALT = 0.05;
+/** Active pins rise to this altitude; reticles track the needle tip.
+ *  Short and hairline-thin: at oblique framings a taller or fatter
+ *  cylinder projects as a smeared bar through its reticle. */
+const NEEDLE_ALT = 0.035;
 
 // Stable identity matters: a new accessor function per render would make
 // three-globe tear down and re-tessellate every land polygon. A null side
@@ -478,18 +480,18 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           (pos.x * cam.x + pos.y * cam.y + pos.z * cam.z) / (posLen * camLen) < horizon
         );
       };
-      // Crosshairs on every active pin.
-      const crosses = svg.querySelectorAll<SVGPathElement>(".leader-cross");
+      // Waypoint reticles on every active pin.
+      const marks = svg.querySelectorAll<SVGGElement>("g.waypoint");
       activePins.forEach((pin, i) => {
-        const cross = crosses[i];
-        if (!cross) return;
+        const mark = marks[i];
+        if (!mark) return;
         if (behindHorizon(pin)) {
-          cross.style.visibility = "hidden";
+          mark.style.visibility = "hidden";
           return;
         }
         const screen = globe.getScreenCoords(pin.lat, pin.lng, NEEDLE_ALT);
-        cross.setAttribute("transform", `translate(${screen.x}, ${screen.y})`);
-        cross.style.visibility = "visible";
+        mark.setAttribute("transform", `translate(${screen.x}, ${screen.y})`);
+        mark.style.visibility = "visible";
       });
       // Leader lines from each photo panel to its pin.
       const panels = document.querySelectorAll<HTMLElement>(".photo-callout");
@@ -764,14 +766,28 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
               style={{ animationDelay: `${400 + i * 140}ms` }}
             />
           ))}
-          {/* Briefing crosshairs on every pin of the active chapter. */}
+          {/* Waypoint reticles on every pin of the active chapter: a
+           * diamond outline, four outer ticks, and a center dot. The
+           * outer group takes the tracker's translate; the inner group
+           * carries the lock-on scale animation, so they never fight. */}
           {activePins.map((pin, i) => (
-            <path
-              key={`${pin.lat},${pin.lng}`}
-              className="leader-cross"
-              d="M -11 0 H -4 M 4 0 H 11 M 0 -11 V -4 M 0 4 V 11"
-              style={{ animationDelay: `${300 + i * 90}ms` }}
-            />
+            <g key={`${pin.lat},${pin.lng}`} className="waypoint">
+              <g className="waypoint-mark" style={{ animationDelay: `${300 + i * 90}ms` }}>
+                <rect
+                  className="wp-diamond"
+                  x={-5.2}
+                  y={-5.2}
+                  width={10.4}
+                  height={10.4}
+                  transform="rotate(45)"
+                />
+                <path
+                  className="wp-ticks"
+                  d="M 0 -12 V -8.4 M 0 8.4 V 12 M -12 0 H -8.4 M 8.4 0 H 12"
+                />
+                <circle className="wp-dot" r={1.5} />
+              </g>
+            </g>
           ))}
         </svg>
       )}
@@ -813,7 +829,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           // Active pins are briefing-map needles: thin tall stalks rising
           // off the chart, tipped by the SVG crosshair; inactive
           // locations stay low dots.
-          pointRadius={(d) => ((d as PointDatum).chapterId === activeId ? 0.18 : 0.22)}
+          pointRadius={(d) => ((d as PointDatum).chapterId === activeId ? 0.09 : 0.22)}
           pointAltitude={(d) =>
             (d as PointDatum).chapterId === activeId ? NEEDLE_ALT : 0.008
           }
@@ -826,9 +842,9 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           arcColor={palette.arcColorAccessor}
           arcStroke={0.22}
           arcAltitudeAutoScale={0.3}
-          arcDashLength={reducedMotion ? 1 : 0.16}
-          arcDashGap={reducedMotion ? 0 : 0.24}
-          arcDashAnimateTime={reducedMotion ? 0 : 1400}
+          arcDashLength={reducedMotion ? 1 : 0.09}
+          arcDashGap={reducedMotion ? 0 : 0.13}
+          arcDashAnimateTime={reducedMotion ? 0 : 1600}
           arcsTransitionDuration={reducedMotion ? 0 : ARC_ENTER_MS}
           showGraticules={true}
           onZoom={handleZoom}
