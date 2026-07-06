@@ -125,6 +125,7 @@ ${site.contact.map((c) => `    { label: ${s(c.label)}, href: ${s(c.href)} },`).j
   ],
   earthDown: ${s(site.earthDown)},
   earthUp: ${s(site.earthUp)},
+  loadingLabel: ${s(site.loadingLabel)},
   footerNote:
     ${s(site.footerNote)},
   skipLinkLabel: ${s(site.skipLinkLabel)},

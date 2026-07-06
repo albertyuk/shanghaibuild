@@ -11,6 +11,9 @@ interface Props {
   reducedMotion: boolean;
   /** True while the "down to earth" dive is playing. */
   diving: boolean;
+  /** Fired once, when the map has fully streamed in (or there was
+   *  nothing to stream) — the app drops its boot veil on this. */
+  onLoaded?: () => void;
 }
 
 interface PointDatum {
@@ -231,13 +234,28 @@ function chapterOverview(chapter: Chapter) {
  *  not backwards over Europe. */
 const nearestLng = (lng: number, ref: number) => lng - 360 * Math.round((lng - ref) / 360);
 
-export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving }: Props) {
+/** How long a leaving overlay (reticles, leader lines, photo panels)
+ *  lingers to play its exit before the next chapter's set keys in. */
+const MARKER_LEAVE_MS = 220;
+
+export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving, onLoaded }: Props) {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const hudRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [ready, setReady] = useState(false);
   const hasScrolled = useRef(false);
+
+  // The loaded signal fires exactly once. A ref carries the latest
+  // callback into the one-shot streaming effect below.
+  const onLoadedRef = useRef(onLoaded);
+  onLoadedRef.current = onLoaded;
+  const loadedFired = useRef(false);
+  const fireLoaded = useCallback(() => {
+    if (loadedFired.current) return;
+    loadedFired.current = true;
+    onLoadedRef.current?.();
+  }, []);
 
   const palette = useMemo(() => {
     const accent = cssToken("--accent");
@@ -378,14 +396,25 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
             }
           }
         });
-        if (!plan.length) return;
+        if (!plan.length) {
+          fireLoaded();
+          return;
+        }
 
         let step = 0;
         const feedChunk = () => {
           if (cancelled) return;
           plan[step]();
           step += 1;
-          if (step < plan.length) frame = requestAnimationFrame(feedChunk);
+          if (step < plan.length) {
+            frame = requestAnimationFrame(feedChunk);
+          } else {
+            // One more frame so the final chunk actually paints before
+            // the boot veil starts to lift.
+            frame = requestAnimationFrame(() => {
+              if (!cancelled) fireLoaded();
+            });
+          }
         };
         frame = requestAnimationFrame(feedChunk);
       },
@@ -394,7 +423,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
       cancelled = true;
       cancelAnimationFrame(frame);
     };
-  }, []);
+  }, [fireLoaded]);
 
   // The canvas always matches its pane exactly.
   useEffect(() => {
@@ -440,13 +469,32 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
       }));
   }, [activeId]);
 
+  // Chapter switches never yank the overlay markers away mid-frame: the
+  // outgoing set lingers for a short leaving beat (CSS fades it), then
+  // the new chapter's markers key in and play their lock-on entrance.
+  const [markerId, setMarkerId] = useState<string | null>(activeId);
+  const [markersLeaving, setMarkersLeaving] = useState(false);
+  useEffect(() => {
+    if (activeId === markerId) return;
+    if (reducedMotion) {
+      setMarkerId(activeId);
+      return;
+    }
+    setMarkersLeaving(true);
+    const timer = window.setTimeout(() => {
+      setMarkersLeaving(false);
+      setMarkerId(activeId);
+    }, MARKER_LEAVE_MS);
+    return () => window.clearTimeout(timer);
+  }, [activeId, markerId, reducedMotion]);
+
   // Every active-chapter pin gets a briefing crosshair, tracked on
   // screen each frame (desktop only — the overlay is hidden on mobile).
   const activePins = useMemo<Pin[]>(() => {
     if (!isDesktop) return [];
-    const chapter = chapters.find((ch) => ch.id === activeId);
+    const chapter = chapters.find((ch) => ch.id === markerId);
     return chapter ? [...chapter.pins] : [];
-  }, [activeId, isDesktop]);
+  }, [markerId, isDesktop]);
 
   // Pins whose photo callouts get a leader line drawn to them (matches
   // the panels PhotoCallouts renders, in the same order).
@@ -753,8 +801,8 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
       {activePins.length > 0 && (
         <svg
           ref={leaderRef}
-          className="leader-lines"
-          key={activeId ?? "none"}
+          className={markersLeaving ? "leader-lines leaving" : "leader-lines"}
+          key={markerId ?? "none"}
           aria-hidden="true"
         >
           {/* Lines wait for their panels to finish materializing. */}

@@ -1,9 +1,15 @@
+import { useEffect, useState } from "react";
 import { chapters } from "../data/chapters";
 import { formatCoordinate } from "../lib/coords";
 
 interface Props {
   activeId: string | null;
+  reducedMotion: boolean;
 }
+
+/** How long the outgoing panels linger to play their dematerialize
+ *  before the next chapter's set keys in. Matches the globe overlay. */
+const LEAVE_MS = 220;
 
 /**
  * Briefing-map photo callouts: for each pin of the active chapter that
@@ -15,8 +21,29 @@ interface Props {
  * invisible until photo slots are filled. Desktop only; the mobile pane
  * is too small.
  */
-export function PhotoCallouts({ activeId }: Props) {
-  const chapter = chapters.find((ch) => ch.id === activeId);
+export function PhotoCallouts({ activeId, reducedMotion }: Props) {
+  // Panels never blink out: on chapter change the outgoing set plays a
+  // short dematerialize (CSS `.leaving`), then the new chapter's panels
+  // key in and materialize as usual.
+  const [view, setView] = useState<{ id: string | null; leaving: boolean }>({
+    id: activeId,
+    leaving: false,
+  });
+  useEffect(() => {
+    if (view.id === activeId) return;
+    if (reducedMotion) {
+      setView({ id: activeId, leaving: false });
+      return;
+    }
+    setView((v) => (v.leaving ? v : { ...v, leaving: true }));
+    const timer = window.setTimeout(
+      () => setView({ id: activeId, leaving: false }),
+      LEAVE_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [activeId, view.id, reducedMotion]);
+
+  const chapter = chapters.find((ch) => ch.id === view.id);
   if (!chapter) return null;
   const withPhotos = chapter.pins
     .filter((pin) => pin.photos && pin.photos.length > 0)
@@ -24,7 +51,11 @@ export function PhotoCallouts({ activeId }: Props) {
   if (!withPhotos.length) return null;
 
   return (
-    <aside className="photo-callouts" key={chapter.id} aria-label={chapter.title}>
+    <aside
+      className={view.leaving ? "photo-callouts leaving" : "photo-callouts"}
+      key={chapter.id}
+      aria-label={chapter.title}
+    >
       {withPhotos.map((pin) => {
         const photos = (pin.photos ?? []).slice(0, 2);
         const captions = photos.map((photo) => photo.caption).filter(Boolean);
@@ -37,7 +68,6 @@ export function PhotoCallouts({ activeId }: Props) {
                   key={i}
                   src={photo.src}
                   alt={photo.caption ?? `${pin.city}, ${pin.country}`}
-                  loading="lazy"
                 />
               ))}
             </div>

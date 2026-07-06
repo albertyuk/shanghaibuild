@@ -100,6 +100,79 @@ button {
   transform: none;
 }
 
+/* ---------- Boot veil ---------- */
+
+/* Covers the page while the globe streams its map in; the scene reports
+ * done (with a hard timeout failsafe in App) and the veil lifts. The
+ * wait cue is a pulsing waypoint reticle — the site's own mark. */
+.boot-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  transition: opacity 500ms var(--ease-slip);
+}
+
+.boot-veil.leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.boot-veil-inner {
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+}
+
+.boot-mark {
+  width: 44px;
+  height: 44px;
+  overflow: visible;
+  animation: boot-pulse 1600ms var(--ease-slip) infinite;
+}
+
+.boot-mark rect,
+.boot-mark path {
+  fill: none;
+  stroke: var(--accent);
+}
+
+.boot-mark rect {
+  stroke-width: 1.2;
+}
+
+.boot-mark path {
+  stroke-width: 1;
+  opacity: 0.75;
+}
+
+.boot-mark circle {
+  fill: var(--accent);
+}
+
+@keyframes boot-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.boot-label {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 /* ---------- "Down to earth" toggle ---------- */
 
 /* The P3 button: a parallelogram with one clipped corner, hairline at
@@ -218,7 +291,9 @@ button {
   inset: 0;
 }
 
-/* Flight-instrument readout: live camera coordinates + altitude. */
+/* Flight-instrument readout: live camera coordinates + altitude. Blank
+ * until the first camera move writes to it — fade the first line in
+ * rather than snapping from nothing to numbers. */
 .globe-hud {
   position: absolute;
   right: clamp(16px, 2vw, 28px);
@@ -229,6 +304,11 @@ button {
   letter-spacing: 0.06em;
   color: var(--muted);
   pointer-events: none;
+  transition: opacity 300ms var(--ease-slip);
+}
+
+.globe-hud:empty {
+  opacity: 0;
 }
 
 /* ---------- Briefing photo callouts ---------- */
@@ -273,6 +353,20 @@ button {
   to {
     opacity: 1;
     clip-path: inset(0 0 0 0);
+  }
+}
+
+/* Leaving: the outgoing stack dematerializes together (the shorthand
+ * zeroes the second panel's stagger) before the next chapter's panels
+ * key in and materialize. */
+.photo-callouts.leaving .photo-callout {
+  animation: callout-dematerialize 200ms var(--ease-slip) both;
+}
+
+@keyframes callout-dematerialize {
+  to {
+    opacity: 0;
+    transform: translateY(6px);
   }
 }
 
@@ -349,6 +443,13 @@ button {
   z-index: 5;
   pointer-events: none;
   overflow: visible;
+  transition: opacity 220ms var(--ease-slip);
+}
+
+/* The outgoing chapter's reticles and lines fade as one while the
+ * camera starts its flight; the incoming set locks on after. */
+.leader-lines.leaving {
+  opacity: 0;
 }
 
 .leader-lines polyline {
@@ -444,6 +545,29 @@ button {
   z-index: 1;
   margin-left: var(--globe-width-desktop);
   padding: 0 clamp(28px, 4.5vw, 72px);
+}
+
+/* Mode switches (globe ↔ words-only) crossfade the rail into its new
+ * position instead of teleporting it. Two aliases of the same fade so
+ * the animation restarts on every class flip. */
+@keyframes rail-in-a {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rail-in-b {
+  from {
+    opacity: 0;
+  }
+}
+
+.layout:not(.no-globe) .rail {
+  animation: rail-in-a 320ms var(--ease-slip);
+}
+
+.no-globe .rail {
+  animation: rail-in-b 320ms var(--ease-slip);
 }
 
 .no-globe .globe-pane {
@@ -739,6 +863,7 @@ button {
   position: relative;
   transition:
     color 200ms var(--ease-slip),
+    background-color 200ms var(--ease-slip),
     transform 200ms var(--ease-spring);
 }
 

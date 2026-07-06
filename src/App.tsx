@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { chapters, site } from "./data/chapters";
 import { Hero } from "./components/Hero";
 import { ChapterSection } from "./components/ChapterSection";
@@ -26,6 +26,42 @@ export default function App() {
   const [diving, setDiving] = useState(false);
   const diveTimer = useRef(0);
   const webgl = useMemo(hasWebGL, []);
+  // Boot veil: covers the page while the globe streams its map in, then
+  // fades away. Dismissed by the globe's loaded callback, with a hard
+  // failsafe so a stalled fetch can never trap the visitor behind it.
+  const [booted, setBooted] = useState(false);
+  const [bootLeaving, setBootLeaving] = useState(false);
+  const bootDone = useCallback(() => {
+    setBooted((already) => {
+      if (!already) {
+        setBootLeaving(true);
+        window.setTimeout(() => setBootLeaving(false), 650);
+      }
+      return true;
+    });
+  }, []);
+  useEffect(() => {
+    if (!webgl) {
+      setBooted(true);
+      return;
+    }
+    const failsafe = window.setTimeout(bootDone, 8000);
+    return () => window.clearTimeout(failsafe);
+  }, [webgl, bootDone]);
+
+  // Warm the browser cache for every chapter photo once the globe is up,
+  // so callout panels never pop in half-loaded mid-scroll.
+  useEffect(() => {
+    if (!booted) return;
+    for (const chapter of chapters) {
+      for (const pin of chapter.pins) {
+        for (const photo of pin.photos ?? []) {
+          const img = new Image();
+          img.src = photo.src;
+        }
+      }
+    }
+  }, [booted]);
   const isDesktop = useMediaQuery("(min-width: 900px)");
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const showGlobe = webgl && !earthbound;
@@ -96,6 +132,18 @@ export default function App() {
       <a className="skip-link" href="#chapters">
         {site.skipLinkLabel}
       </a>
+      {webgl && (!booted || bootLeaving) && (
+        <div className={booted ? "boot-veil leaving" : "boot-veil"} role="status">
+          <div className="boot-veil-inner">
+            <svg className="boot-mark" viewBox="-14 -14 28 28" aria-hidden="true">
+              <rect x={-5.2} y={-5.2} width={10.4} height={10.4} transform="rotate(45)" />
+              <path d="M 0 -12 V -8.4 M 0 8.4 V 12 M -12 0 H -8.4 M 8.4 0 H 12" />
+              <circle r={1.5} />
+            </svg>
+            <p className="boot-label">{site.loadingLabel}</p>
+          </div>
+        </div>
+      )}
       {webgl && (
         <button
           type="button"
@@ -109,7 +157,9 @@ export default function App() {
           </span>
         </button>
       )}
-      {showGlobe && <PhotoCallouts activeId={activeId} />}
+      {showGlobe && (
+        <PhotoCallouts activeId={activeId} reducedMotion={reducedMotion} />
+      )}
       {showGlobe && (
         <div className="globe-pane" aria-hidden="true">
           <GlobeErrorBoundary fallback={<GlobePlaceholder />}>
@@ -119,6 +169,7 @@ export default function App() {
                 isDesktop={isDesktop}
                 reducedMotion={reducedMotion}
                 diving={diving}
+                onLoaded={bootDone}
               />
             </Suspense>
           </GlobeErrorBoundary>

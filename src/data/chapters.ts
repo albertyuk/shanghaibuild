@@ -158,6 +158,7 @@ export const site = {
   ],
   earthDown: "Down to earth",
   earthUp: "Back to orbit",
+  loadingLabel: "Plotting the atlas",
   footerNote:
     "Single static page. The globe is drawn locally from vector coastlines; nothing on this site tracks you.",
   skipLinkLabel: "Skip to chapters",
