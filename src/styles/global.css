@@ -837,7 +837,7 @@ button {
   position: relative;
 }
 
-/* The panel's top rule, tilted to the Dark Hour angle. */
+/* The panel's top rule — a level hairline between chapters. */
 .chapter::before {
   content: "";
   position: absolute;
@@ -846,8 +846,6 @@ button {
   width: min(60%, 20rem);
   height: 1px;
   background: var(--hairline);
-  transform: rotate(-3deg);
-  transform-origin: left center;
 }
 
 /* The mission-number block: a briefing-scale mono numeral behind an

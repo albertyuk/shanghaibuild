@@ -171,10 +171,17 @@ const ARC_START_LAT = (d: object) => (d as ArcDatum).startLat;
 const ARC_START_LNG = (d: object) => (d as ArcDatum).startLng;
 const ARC_END_LAT = (d: object) => (d as ArcDatum).endLat;
 const ARC_END_LNG = (d: object) => (d as ArcDatum).endLng;
-// Dot radii (angular degrees) per zoom bucket: globe → region → country
-// → city. The active dot ends tiny — inside its reticle — at city zoom.
-const ACTIVE_DOT_RADIUS = [0.14, 0.077, 0.035, 0.004];
-const INACTIVE_DOT_RADIUS = [0.22, 0.121, 0.055, 0.011];
+// Dot radii scale with the camera's altitude (quantized to half-octave
+// steps in handleZoom), so a pin reads as the same small on-screen speck
+// from hero orbit down to a city dive — any fixed angular size that
+// looks right at 2,000 km swallows whole neighborhoods at 20 km. The
+// active dot stays smaller than the reticle that marks it; neighbor
+// pins read a step bolder.
+const ACTIVE_DOT_K = 0.096;
+const INACTIVE_DOT_K = 0.15;
+/** Above this altitude the dots stop growing — the whole-globe hero
+ *  view keeps its look rather than scaling on forever. */
+const DOT_ALT_CAP = 1.5;
 // Layer altitudes: land 0.007, urban wash 0.0085, lake fills 0.010,
 // lines 0.012. The gaps
 // are sized to real error budgets, not taste: lakes are perimeter-only
@@ -627,15 +634,15 @@ export default function GlobeScene({
   // option, so capture the reduced-motion preference at mount.
   const animateIn = useRef(!reducedMotion);
 
-  // Map dots shrink as the camera drops: pointRadius is angular
-  // (degrees on the globe), so the 0.22° dot that reads as a pin at
-  // globe scale would be a 24km blob swallowing a city view. Coarse
-  // buckets keep the digest churn to a handful per flight. At the city
-  // bucket the ACTIVE dot all but vanishes — the reticle is the marker
-  // there, and a fat dot underneath would swallow its diamond — while
-  // neighbor pins stay as small readable blobs.
+  // Zoom buckets gate the close-up layers (patch fills, grounded lines);
+  // the dots scale separately on a finer half-octave ladder — coarse
+  // enough that the points layer re-digests a dozen times per deep
+  // flight instead of every frame, fine enough that no step reads as a
+  // pop (and the 500ms point transition smooths each one).
   const [dotBucket, setDotBucket] = useState(0);
   const dotBucketRef = useRef(0);
+  const [dotAltStep, setDotAltStep] = useState(1);
+  const dotAltStepRef = useRef(1);
 
   // Lines hug the ground at chapter zooms (see LINE_ALTITUDE_NEAR);
   // per-point baked altitudes (lake rings) always win.
@@ -664,13 +671,12 @@ export default function GlobeScene({
       (d as PointDatum).chapterId === activeId ? palette.accent : palette.pinDim,
     [activeId, palette],
   );
-  const pointRadiusAccessor = useMemo(
-    () => (d: object) =>
-      (d as PointDatum).chapterId === activeId
-        ? ACTIVE_DOT_RADIUS[dotBucket]
-        : INACTIVE_DOT_RADIUS[dotBucket],
-    [activeId, dotBucket],
-  );
+  const pointRadiusAccessor = useMemo(() => {
+    const scale = 2 ** (dotAltStep / 2);
+    return (d: object) =>
+      ((d as PointDatum).chapterId === activeId ? ACTIVE_DOT_K : INACTIVE_DOT_K) *
+      scale;
+  }, [activeId, dotAltStep]);
 
   // Arcs exist only while their chapter is active. Arc endpoints are
   // hand-authored indexes into pins — a bad index drops that arc rather
@@ -1204,6 +1210,13 @@ export default function GlobeScene({
     if (bucket !== dotBucketRef.current) {
       dotBucketRef.current = bucket;
       setDotBucket(bucket);
+    }
+    const step = Math.round(
+      Math.log2(Math.min(Math.max(alt, 1e-4), DOT_ALT_CAP)) * 2,
+    );
+    if (step !== dotAltStepRef.current) {
+      dotAltStepRef.current = step;
+      setDotAltStep(step);
     }
   }, []);
 
