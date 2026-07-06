@@ -26,6 +26,8 @@ export default function App() {
   const [diving, setDiving] = useState(false);
   const diveTimer = useRef(0);
   const webgl = useMemo(hasWebGL, []);
+  const isDesktop = useMediaQuery("(min-width: 900px)");
+  const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   // Boot veil: covers the page while the globe streams its map in, then
   // fades away. Dismissed by the globe's loaded callback, with a hard
   // failsafe so a stalled fetch can never trap the visitor behind it.
@@ -52,18 +54,23 @@ export default function App() {
     });
   }, []);
   useEffect(() => {
-    if (!webgl) {
+    // No WebGL means no globe to wait for; a Save-Data visitor gets the
+    // content immediately rather than a ceremony they're paying for.
+    const conn = (navigator as { connection?: { saveData?: boolean } }).connection;
+    if (!webgl || conn?.saveData) {
       setBooted(true);
       return;
     }
-    const failsafe = window.setTimeout(bootDone, 8000);
+    const failsafe = window.setTimeout(bootDone, 5000);
     return () => window.clearTimeout(failsafe);
   }, [webgl, bootDone]);
 
   // Warm the browser cache for every chapter photo once the globe is up,
-  // so callout panels never pop in half-loaded mid-scroll.
+  // so callout panels never pop in half-loaded mid-scroll. Desktop only:
+  // the callout panels never render below 900px, so phones shouldn't
+  // spend a byte on them.
   useEffect(() => {
-    if (!booted) return;
+    if (!booted || !isDesktop) return;
     for (const chapter of chapters) {
       for (const pin of chapter.pins) {
         for (const photo of pin.photos ?? []) {
@@ -72,9 +79,7 @@ export default function App() {
         }
       }
     }
-  }, [booted]);
-  const isDesktop = useMediaQuery("(min-width: 900px)");
-  const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+  }, [booted, isDesktop]);
   const showGlobe = webgl && !earthbound;
 
   // Track which section sits at the center of the reading window. The
@@ -171,7 +176,7 @@ export default function App() {
           </span>
         </button>
       )}
-      {showGlobe && (
+      {showGlobe && isDesktop && (
         <PhotoCallouts activeId={activeId} reducedMotion={reducedMotion} />
       )}
       {showGlobe && (

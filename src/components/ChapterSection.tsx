@@ -40,7 +40,9 @@ export function ChapterSection({ chapter, index }: Props) {
       <h2 id={`${chapter.id}-title`}>{chapter.title}</h2>
       {meta && <p className="chapter-meta">{meta}</p>}
       <p className="blurb">{chapter.blurb}</p>
-      {chapter.link && (
+      {/* Authored content: only web links may render (scheme backstop —
+       * the editor validates this too). */}
+      {chapter.link && /^https?:\/\//i.test(chapter.link) && (
         <a className="chapter-link" href={chapter.link} target="_blank" rel="noreferrer">
           {chapter.link.replace(/^https?:\/\/(www\.)?/, "")}{" "}
           <span className="link-arrow" aria-hidden="true">

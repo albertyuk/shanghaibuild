@@ -19,8 +19,12 @@ const headers = (token: string) => ({
   "X-GitHub-Api-Version": "2022-11-28",
 });
 
+/** owner/repo, encoded — user-typed fields never reshape the URL path. */
+const repoSlug = (target: PublishTarget) =>
+  `${encodeURIComponent(target.owner)}/${encodeURIComponent(target.repo)}`;
+
 const apiPath = (target: PublishTarget, path: string) =>
-  `https://api.github.com/repos/${target.owner}/${target.repo}/contents/` +
+  `https://api.github.com/repos/${repoSlug(target)}/contents/` +
   path.split("/").map(encodeURIComponent).join("/");
 
 export function bytesToBase64(buf: ArrayBuffer): string {
@@ -45,10 +49,9 @@ export const textToBase64 = (text: string) =>
  * cryptically.
  */
 export async function assertWriteAccess(target: PublishTarget): Promise<void> {
-  const res = await fetch(
-    `https://api.github.com/repos/${target.owner}/${target.repo}`,
-    { headers: headers(target.token) },
-  );
+  const res = await fetch(`https://api.github.com/repos/${repoSlug(target)}`, {
+    headers: headers(target.token),
+  });
   if (res.status === 401) {
     throw new Error("GitHub rejected the token (401). Paste the token again — it may be expired or mistyped.");
   }
@@ -70,7 +73,7 @@ export async function assertWriteAccess(target: PublishTarget): Promise<void> {
     );
   }
   const branchRes = await fetch(
-    `https://api.github.com/repos/${target.owner}/${target.repo}/branches/${encodeURIComponent(target.branch)}`,
+    `https://api.github.com/repos/${repoSlug(target)}/branches/${encodeURIComponent(target.branch)}`,
     { headers: headers(target.token) },
   );
   if (branchRes.status === 404) {

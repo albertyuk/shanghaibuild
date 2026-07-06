@@ -33,5 +33,12 @@ npm run preview  # serve the production build locally
 
 `dist/` is a plain static site; deploy it to Vercel or Cloudflare Pages as-is
 (framework preset: Vite, output directory: `dist`). The globe is fully vector
-— land shapes come from `public/geo/land-50m.geojson`, served locally — so it
-stays crisp at any zoom and no runtime requests leave the origin.
+— land, coastlines, borders, and lakes come from the JSON files in
+`public/geo/`, served locally — so it stays crisp at any zoom and no runtime
+requests leave the origin (the editor's GitHub publish is the one exception,
+by design).
+
+If the host supports custom headers, prefer real security headers over the
+built-in CSP meta tags (see `vite.config.ts`): copy the same policy and add
+`frame-ancestors 'none'` and `X-Content-Type-Options: nosniff`, plus
+`cache-control: public, max-age=31536000, immutable` for `/assets/*`.

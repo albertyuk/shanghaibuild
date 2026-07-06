@@ -1,5 +1,11 @@
 import { site } from "../data/chapters";
 
+/** Contact links are authored content; only web and mail schemes may
+ *  reach an href (a javascript: URL here would execute in visitors'
+ *  browsers). The editor validates this too — this is the backstop. */
+const safeHref = (href: string) =>
+  /^(https?:\/\/|mailto:)/i.test(href) ? href : undefined;
+
 export function SiteFooter() {
   return (
     <footer className="footer" data-fade>
@@ -8,7 +14,7 @@ export function SiteFooter() {
         {site.contact.map((item) => (
           <li key={item.href}>
             <a
-              href={item.href}
+              href={safeHref(item.href)}
               {...(item.href.startsWith("http")
                 ? { target: "_blank", rel: "noreferrer" }
                 : {})}

@@ -51,7 +51,7 @@ interface GlobeControls {
  * paths, so coastlines never reveal the tile cuts. If either request
  * fails, the sphere, pins, and arcs still render; the site never blanks.
  */
-const LAND_TILES_URL = "/geo/land-tiles.geojson";
+const LAND_TILES_URL = "/geo/land-tiles.json";
 const COAST_RINGS_URL = "/geo/land-rings.json";
 const BORDERS_URL = "/geo/land-borders.json";
 const TERRAIN_URL = "/geo/terrain.json";
@@ -117,14 +117,27 @@ const tileVertices = (tile: LandPolygon) =>
 // immediately and islets fill in behind. three-globe keys polygons by a
 // stamped id and skips geometry rebuilds when coordinates match by
 // reference, so a growing array never re-tessellates what is built.
-// Line paths are far cheaper per vertex, hence the looser budget.
+// Line paths are far cheaper per vertex, hence the looser budget — and
+// deliberately coarse: three-globe's paths layer re-tessellates EVERY
+// existing line on each digest (its transition guard is always true),
+// so total rework grows with the square of the chunk count. Five-ish
+// line digests keep that rework small; tiles don't pay this tax (their
+// geometry is keyed by reference and never rebuilt).
 const TILE_CHUNK_VERTICES = 1500;
-const RING_CHUNK_POINTS = 4000;
+const RING_CHUNK_POINTS = 12000;
 
 // Stable accessors for the coastline/border/river path layer.
 const PATH_POINTS = (datum: object) => (datum as PathDatum).points;
 const PATH_POINT_LAT = (point: object) => (point as number[])[1];
 const PATH_POINT_LNG = (point: object) => (point as number[])[0];
+// …and for the points/arcs layers: a fresh arrow per render would make
+// react-kapsule re-digest the layer on every streamed chunk.
+const POINT_LAT = (d: object) => (d as PointDatum).lat;
+const POINT_LNG = (d: object) => (d as PointDatum).lng;
+const ARC_START_LAT = (d: object) => (d as ArcDatum).startLat;
+const ARC_START_LNG = (d: object) => (d as ArcDatum).startLng;
+const ARC_END_LAT = (d: object) => (d as ArcDatum).endLat;
+const ARC_END_LNG = (d: object) => (d as ArcDatum).endLng;
 // Layer altitudes: land 0.007, lake fills 0.010, lines 0.012. The gaps
 // are sized to real error budgets, not taste: lakes are perimeter-only
 // triangulations (too small for the 5° interior grid), so Lake Superior's
@@ -391,6 +404,10 @@ export default function GlobeScene({
           (ringsData?.rings?.length ?? 0) + (bordersData?.borders?.length ?? 0);
         planPolySlices(0, tiles.length);
         planLineSlices(0, baseLineCount);
+        // The map reads complete here — land, coasts, borders. The boot
+        // veil lifts at this point; lakes are garnish and fill in behind
+        // the fade rather than holding the visitor at the door.
+        const baseSteps = plan.length;
         planPolySlices(tiles.length, polys.length);
         planLineSlices(baseLineCount, lines.length);
         // Final step, one frame after the last chunk has committed: give
@@ -420,15 +437,8 @@ export default function GlobeScene({
           plan[step]();
           step += 1;
           onProgressRef.current?.(step, plan.length);
-          if (step < plan.length) {
-            frame = requestAnimationFrame(feedChunk);
-          } else {
-            // One more frame so the final chunk actually paints before
-            // the boot veil starts to lift.
-            frame = requestAnimationFrame(() => {
-              if (!cancelled) fireLoaded();
-            });
-          }
+          if (step >= baseSteps) fireLoaded(); // idempotent
+          if (step < plan.length) frame = requestAnimationFrame(feedChunk);
         };
         frame = requestAnimationFrame(feedChunk);
       },
@@ -466,6 +476,19 @@ export default function GlobeScene({
   // globe.gl's intro tween (scale-in + full rotation) is an init-time
   // option, so capture the reduced-motion preference at mount.
   const animateIn = useRef(!reducedMotion);
+
+  // Active-chapter styling for the flat map dots. Memoized per chapter
+  // change — identity churn here would re-digest the points layer on
+  // every render (and renders come one per chunk while the map streams).
+  const pointColorAccessor = useMemo(
+    () => (d: object) =>
+      (d as PointDatum).chapterId === activeId ? palette.accent : palette.pinDim,
+    [activeId, palette],
+  );
+  const pointRadiusAccessor = useMemo(
+    () => (d: object) => ((d as PointDatum).chapterId === activeId ? 0.14 : 0.22),
+    [activeId],
+  );
 
   // Arcs exist only while their chapter is active. Arc endpoints are
   // hand-authored indexes into pins — a bad index drops that arc rather
@@ -527,6 +550,15 @@ export default function GlobeScene({
     const svg = leaderRef.current;
     if (!ready || !svg || !activePins.length) return;
     let frame = 0;
+    // The reticle groups belong to this render, so query them once. The
+    // photo panels live in another component on its own exit-lag timer —
+    // cache them too, but re-query whenever the cached set is stale
+    // (wrong count or detached nodes), instead of every frame.
+    const marks = svg.querySelectorAll<SVGGElement>("g.waypoint");
+    const lines = svg.querySelectorAll<SVGPolylineElement>("polyline");
+    let panels: HTMLElement[] = [];
+    const panelsFresh = () =>
+      panels.length === photoPins.length && panels.every((p) => p.isConnected);
     const update = () => {
       frame = requestAnimationFrame(update);
       const globe = globeRef.current;
@@ -542,7 +574,6 @@ export default function GlobeScene({
         );
       };
       // Waypoint reticles on every active pin.
-      const marks = svg.querySelectorAll<SVGGElement>("g.waypoint");
       activePins.forEach((pin, i) => {
         const mark = marks[i];
         if (!mark) return;
@@ -555,8 +586,9 @@ export default function GlobeScene({
         mark.style.visibility = "visible";
       });
       // Leader lines from each photo panel to its pin.
-      const panels = document.querySelectorAll<HTMLElement>(".photo-callout");
-      const lines = svg.querySelectorAll<SVGPolylineElement>("polyline");
+      if (!panelsFresh()) {
+        panels = [...document.querySelectorAll<HTMLElement>(".photo-callout")];
+      }
       photoPins.forEach((pin, i) => {
         const line = lines[i];
         const panel = panels[i];
@@ -882,21 +914,19 @@ export default function GlobeScene({
           pathPointAlt={LINE_ALTITUDE}
           pathTransitionDuration={0}
           pointsData={points}
-          pointLat={(d) => (d as PointDatum).lat}
-          pointLng={(d) => (d as PointDatum).lng}
-          pointColor={(d) =>
-            (d as PointDatum).chapterId === activeId ? palette.accent : palette.pinDim
-          }
+          pointLat={POINT_LAT}
+          pointLng={POINT_LNG}
+          pointColor={pointColorAccessor}
           // Every location is a flat map dot — the SVG reticle does the
           // marking for the active chapter. No pillars.
-          pointRadius={(d) => ((d as PointDatum).chapterId === activeId ? 0.14 : 0.22)}
+          pointRadius={pointRadiusAccessor}
           pointAltitude={0.008}
           pointsTransitionDuration={reducedMotion ? 0 : PIN_ENTER_MS}
           arcsData={arcs}
-          arcStartLat={(d) => (d as ArcDatum).startLat}
-          arcStartLng={(d) => (d as ArcDatum).startLng}
-          arcEndLat={(d) => (d as ArcDatum).endLat}
-          arcEndLng={(d) => (d as ArcDatum).endLng}
+          arcStartLat={ARC_START_LAT}
+          arcStartLng={ARC_START_LNG}
+          arcEndLat={ARC_END_LAT}
+          arcEndLng={ARC_END_LNG}
           arcColor={palette.arcColorAccessor}
           arcStroke={0.22}
           arcAltitudeAutoScale={0.3}

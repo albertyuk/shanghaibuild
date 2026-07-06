@@ -15,15 +15,26 @@ import { assertWriteAccess, bytesToBase64, publishFile, textToBase64 } from "./p
 
 const deepCopy = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
-/** sha256("…") of the editor password — the plaintext never ships. A
- *  client-side gate on a static site keeps casual visitors out; it is
- *  a curtain, not a vault (the editor holds no secrets and can write
- *  nothing — real locking belongs at the hosting layer). */
-const PASS_HASH = "5d0dcb207f24be6738e308c6bba22721a0dc15b2372712ac5f71075ec1cc3e78";
+/** PBKDF2 digest of the editor password — the plaintext never ships,
+ *  and 600k iterations make offline cracking of the (public) hash cost
+ *  hours-per-guess-batch instead of being free. Still a curtain, not a
+ *  vault: the editor holds no secrets and can write nothing without a
+ *  GitHub token — real locking belongs at the hosting layer. */
+const PASS_HASH = "0f929d34b9b85f6fc0838ed9ebe56a985e1c7951df7339e79ba963835a60ce1e";
+const PASS_SALT = "atlas-editor-gate-v1";
+const PASS_ITERATIONS = 600_000;
 
-async function sha256Hex(text: string): Promise<string> {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+async function gateHash(text: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", enc.encode(text), "PBKDF2", false, [
+    "deriveBits",
+  ]);
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", hash: "SHA-256", salt: enc.encode(PASS_SALT), iterations: PASS_ITERATIONS },
+    key,
+    256,
+  );
+  return [...new Uint8Array(bits)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 /** Dropped photo files, keyed by their sanitized target filename, so the
@@ -34,11 +45,61 @@ export interface DroppedFile {
 }
 
 const sanitizeFilename = (name: string) =>
-  name.toLowerCase().replace(/[^a-z0-9.-]+/g, "-").replace(/^-+|-+$/g, "");
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9.-]+/g, "-")
+    .replace(/\.{2,}/g, ".") // no dot runs — the name joins a repo path
+    .replace(/^[.-]+|[-.]+$/g, "")
+    .slice(0, 100);
+
+/** Web/mail schemes only — anything else in an href would be a script
+ *  vector on the live site. */
+const SAFE_LINK = /^(https?:\/\/|mailto:)/i;
+
+/** Photos are shown in a ~230px panel; anything bigger than this edge
+ *  is wasted bytes for every visitor. Dropped images get downscaled and
+ *  re-encoded before they ever enter the publish queue. */
+const PHOTO_MAX_EDGE = 1200;
+const PHOTO_PASSTHROUGH_BYTES = 300_000;
+
+async function downscalePhoto(file: File): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, PHOTO_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    if (scale === 1 && file.size <= PHOTO_PASSTHROUGH_BYTES) {
+      bitmap.close();
+      return file; // already small — keep the original bytes
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      bitmap.close();
+      return file;
+    }
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/webp", 0.82),
+    );
+    // Only take the re-encode when it actually wins.
+    if (!blob || blob.size >= file.size) return file;
+    const stem = file.name.replace(/\.[^.]*$/, "") || "photo";
+    return new File([blob], `${stem}.webp`, { type: "image/webp" });
+  } catch {
+    return file; // odd format the browser can't decode — pass through
+  }
+}
 
 function validate(chapters: EditableChapter[], site: SiteContent): string[] {
   const errors: string[] = [];
   if (!site.name.trim()) errors.push("Site: name is empty.");
+  site.contact.forEach((item, i) => {
+    if (item.href.trim() && !SAFE_LINK.test(item.href.trim())) {
+      errors.push(`Contact ${i + 1}: link must start with https:// (or mailto:).`);
+    }
+  });
   const ids = new Set<string>();
   chapters.forEach((chapter, i) => {
     const label = `Chapter ${String(i + 1).padStart(2, "0")}`;
@@ -55,6 +116,9 @@ function validate(chapters: EditableChapter[], site: SiteContent): string[] {
     });
     if (chapter.altitude < 0.05 || chapter.altitude > 3) {
       errors.push(`${label}: altitude should be between 0.05 and 3.`);
+    }
+    if (chapter.link && !/^https?:\/\//i.test(chapter.link)) {
+      errors.push(`${label}: link must start with https://.`);
     }
     chapter.pins.forEach((pin, p) => {
       (pin.photos ?? []).forEach((photo, k) => {
@@ -249,12 +313,16 @@ export function EditorApp() {
     file: File | undefined,
   ) => {
     if (!file || !file.type.startsWith("image/")) return;
-    const name = sanitizeFilename(file.name) || "photo.jpg";
-    setDropped((prev) => {
-      if (prev[name]) URL.revokeObjectURL(prev[name].url);
-      return { ...prev, [name]: { file, url: URL.createObjectURL(file) } };
+    // Downscale before anything else sees the file: the publish queue,
+    // the preview, and the export all carry the shrunken version.
+    void downscalePhoto(file).then((processed) => {
+      const name = sanitizeFilename(processed.name) || "photo.jpg";
+      setDropped((prev) => {
+        if (prev[name]) URL.revokeObjectURL(prev[name].url);
+        return { ...prev, [name]: { file: processed, url: URL.createObjectURL(processed) } };
+      });
+      setPhoto(chapterIndex, pinIndex, slot, { src: `/photos/${name}` });
     });
-    setPhoto(chapterIndex, pinIndex, slot, { src: `/photos/${name}` });
   };
 
   const downloadDropped = (name: string) => {
@@ -328,7 +396,7 @@ export function EditorApp() {
           className="panel gate-panel"
           onSubmit={(e) => {
             e.preventDefault();
-            void sha256Hex(attempt).then((hex) => {
+            void gateHash(attempt).then((hex) => {
               if (hex === PASS_HASH) setUnlocked(true);
               else setWrongPass(true);
             });

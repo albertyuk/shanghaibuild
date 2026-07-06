@@ -55,7 +55,7 @@ export const chapters: Chapter[] = [
     dates: "Jun – Aug 2026",
     blurb:
       "Built agentic AI workflows in Dify and Apify that automate competitive brand research and influencer evaluation across SHEIN's portfolio of 10+ sub-brands, cutting multi-day manual research to minutes per brand. Shipped bilingual report generation with live web-search grounding and anti-fabrication guardrails, plus an end-to-end Instagram intelligence pipeline that turns captions and engagement metrics into structured spreadsheets.",
-    pins: [{ city: "Shanghai", country: "China", lat: 31.2304, lng: 121.4737, photos: [{ src: "/photos/2026-07-06-1.44.51.png" }] }],
+    pins: [{ city: "Shanghai", country: "China", lat: 31.2304, lng: 121.4737, photos: [{ src: "/photos/2026-07-06-1.44.51.webp" }] }],
     altitude: 0.45,
   },
   {
