@@ -21,6 +21,10 @@
   --accent-ink: #ffffff; /* text set on accent fills */
   --hairline: rgba(11, 27, 51, 0.14); /* rules */
   --halftone-dot: rgba(21, 83, 214, 0.05); /* chapter-list strip texture */
+  /* Panel depth: a soft ink-tinted lift for floating chrome. */
+  --shadow-panel:
+    0 10px 30px rgba(11, 27, 51, 0.1),
+    0 2px 6px rgba(11, 27, 51, 0.05);
 
   /* Globe layers (read at runtime by the Three.js scene). Briefing-map
    * look on paper: the glowing halo-blue outlines carry the map; land

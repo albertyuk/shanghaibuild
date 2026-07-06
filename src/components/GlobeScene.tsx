@@ -73,7 +73,7 @@ const IDLE_ROTATE_SPEED = 0.35;
 const ARC_ENTER_MS = 700;
 const PIN_ENTER_MS = 500;
 /** The briefing-map graticule: faint electric grid over the whole map. */
-const GRID_OPACITY = 0.18;
+const GRID_OPACITY = 0.14;
 /** Active pins rise to this altitude; crosshairs track the needle tip. */
 const NEEDLE_ALT = 0.05;
 
@@ -244,9 +244,10 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
     // halo-blue stroke; interior borders stay quiet ink admin lines.
     const coast = withAlpha(cssToken("--globe-coast"), 0.75);
     const border = withAlpha(cssToken("--ink"), 0.28);
+    const arc = withAlpha(accent, 0.85);
     return {
       accent,
-      pinDim: withAlpha(accent, 0.4),
+      pinDim: withAlpha(accent, 0.3),
       bg: cssToken("--bg"),
       ocean: cssToken("--globe-ocean"),
       land: cssToken("--globe-land"),
@@ -255,6 +256,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
       // Memoized once, so layers never re-digest over accessor identity.
       pathColorAccessor: (datum: object) =>
         (datum as PathDatum).kind === "border" ? border : coast,
+      arcColorAccessor: () => arc,
     };
   }, []);
 
@@ -811,7 +813,7 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           // Active pins are briefing-map needles: thin tall stalks rising
           // off the chart, tipped by the SVG crosshair; inactive
           // locations stay low dots.
-          pointRadius={(d) => ((d as PointDatum).chapterId === activeId ? 0.18 : 0.32)}
+          pointRadius={(d) => ((d as PointDatum).chapterId === activeId ? 0.18 : 0.22)}
           pointAltitude={(d) =>
             (d as PointDatum).chapterId === activeId ? NEEDLE_ALT : 0.008
           }
@@ -821,12 +823,12 @@ export default function GlobeScene({ activeId, isDesktop, reducedMotion, diving 
           arcStartLng={(d) => (d as ArcDatum).startLng}
           arcEndLat={(d) => (d as ArcDatum).endLat}
           arcEndLng={(d) => (d as ArcDatum).endLng}
-          arcColor={() => palette.accent}
-          arcStroke={0.45}
+          arcColor={palette.arcColorAccessor}
+          arcStroke={0.22}
           arcAltitudeAutoScale={0.3}
-          arcDashLength={reducedMotion ? 1 : 0.25}
-          arcDashGap={reducedMotion ? 0 : 0.35}
-          arcDashAnimateTime={reducedMotion ? 0 : 1200}
+          arcDashLength={reducedMotion ? 1 : 0.16}
+          arcDashGap={reducedMotion ? 0 : 0.24}
+          arcDashAnimateTime={reducedMotion ? 0 : 1400}
           arcsTransitionDuration={reducedMotion ? 0 : ARC_ENTER_MS}
           showGraticules={true}
           onZoom={handleZoom}
