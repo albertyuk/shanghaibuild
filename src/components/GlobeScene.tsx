@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Globe, { type GlobeMethods } from "react-globe.gl";
 import { MeshBasicMaterial } from "three";
-import { chapters, type Chapter, type Pin } from "../data/chapters";
+import { chapters, site, type Chapter, type Pin } from "../data/chapters";
 import { cssToken, withAlpha } from "../lib/cssTokens";
 import { formatCoordinate } from "../lib/coords";
 
@@ -230,12 +230,16 @@ function clipBehindHorizon<T extends { onBeforeCompile: unknown; customProgramCa
       // The dot grid fades out as the camera drops toward city scale —
       // its ~0.75° cells would read as giant blobs over a 100km view.
       // Camera length is R·(1+altitude), so 108→122 spans alt 0.08→0.22.
+      // It also fades toward the poles (|sin lat| 0.88→0.96 ≈ 62°→74°),
+      // where converging meridians squeeze the lng/lat cells into
+      // concentric ring artifacts — Antarctica renders clean white.
       shader.fragmentShader = shader.fragmentShader.replace(
         "#include <opaque_fragment>",
         `vec3 spN = normalize(vGlobePos);
 \tvec2 spCell = fract(vec2(atan(spN.z, spN.x), asin(clamp(spN.y, -1.0, 1.0))) * ${STIPPLE_CELLS_PER_RAD.toFixed(2)}) - 0.5;
 \tfloat spNear = smoothstep(108.0, 122.0, length(cameraPosition));
-\toutgoingLight *= vec3(1.0) - ${STIPPLE_TINT} * spNear * (1.0 - smoothstep(0.12, 0.3, length(spCell)));
+\tfloat spPolar = 1.0 - smoothstep(0.88, 0.96, abs(spN.y));
+\toutgoingLight *= vec3(1.0) - ${STIPPLE_TINT} * spNear * spPolar * (1.0 - smoothstep(0.12, 0.3, length(spCell)));
 \t#include <opaque_fragment>`,
       );
     }
@@ -786,6 +790,41 @@ export default function GlobeScene({
     return () => cancelAnimationFrame(frame);
   }, [ready, activePins, photoPins]);
 
+  // The South Pole easter egg: no chapter ever flies south of the
+  // equator, so anyone looking at the pole dragged the globe there on
+  // purpose. A line waits for them, tracked at 90°S like a waypoint.
+  const poleEggRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!ready) return;
+    let frame = 0;
+    let shown = false;
+    const update = () => {
+      frame = requestAnimationFrame(update);
+      const globe = globeRef.current;
+      const el = poleEggRef.current;
+      if (!globe || !el) return;
+      const pov = globe.pointOfView() as { lat: number };
+      const cam = globe.camera().position;
+      const camLen = Math.hypot(cam.x, cam.y, cam.z) || 1;
+      const pos = globe.getCoords(-90, 0, RETICLE_ALT);
+      const posLen = Math.hypot(pos.x, pos.y, pos.z) || 1;
+      const visible =
+        pov.lat < -45 &&
+        (pos.x * cam.x + pos.y * cam.y + pos.z * cam.z) / (posLen * camLen) >=
+          GLOBE_RADIUS / camLen - 0.005;
+      if (visible) {
+        const screen = globe.getScreenCoords(-90, 0, RETICLE_ALT);
+        el.style.transform = `translate(${screen.x}px, ${screen.y}px) translate(-50%, -160%)`;
+      }
+      if (visible !== shown) {
+        shown = visible;
+        el.classList.toggle("on", visible);
+      }
+    };
+    frame = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(frame);
+  }, [ready]);
+
   // Idle rotate: desktop hero only, killed permanently on first scroll.
   const applyAutoRotate = useCallback(() => {
     const globe = globeRef.current;
@@ -1065,6 +1104,9 @@ export default function GlobeScene({
   return (
     <div ref={containerRef} className="globe-canvas">
       <div ref={hudRef} className="globe-hud" aria-hidden="true" />
+      <div ref={poleEggRef} className="pole-egg" aria-hidden="true">
+        {site.poleEgg}
+      </div>
       {activePins.length > 0 && (
         <svg
           ref={leaderRef}

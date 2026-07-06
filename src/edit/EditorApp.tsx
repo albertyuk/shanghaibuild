@@ -597,6 +597,7 @@ export function EditorApp() {
           {textField("Toggle — down", site.earthDown, (v) => setSite({ ...site, earthDown: v }))}
           {textField("Toggle — up", site.earthUp, (v) => setSite({ ...site, earthUp: v }))}
           {textField("Loading label", site.loadingLabel, (v) => setSite({ ...site, loadingLabel: v }))}
+          {textField("South Pole easter egg", site.poleEgg, (v) => setSite({ ...site, poleEgg: v }))}
           {textField("Skip link", site.skipLinkLabel, (v) => setSite({ ...site, skipLinkLabel: v }))}
         </div>
         <h3>Contact links</h3>

@@ -1154,6 +1154,36 @@ button {
   animation: cursor-blink 900ms step-end infinite;
 }
 
+/* South Pole easter egg: revealed only to whoever flips the globe all
+ * the way over. Tracked at 90°S from the scene (transform set per
+ * frame); flickers in like every other readout. */
+.pole-egg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.pole-egg.on {
+  visibility: visible;
+  animation: text-acquire 460ms step-end both;
+}
+
+.pole-egg::after {
+  content: "_" / "";
+  margin-left: 3px;
+  color: var(--accent);
+  animation: cursor-blink 900ms step-end infinite;
+}
+
 /* Sat-photo feed syncing: overexposed, a dropout, then settled. The
  * base recon filter rides along in every frame. */
 @keyframes photo-sync {
