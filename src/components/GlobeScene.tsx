@@ -107,6 +107,9 @@ interface LandPolygon {
   water?: boolean;
   /** Urban footprints: a faint accent wash over the land. */
   urban?: boolean;
+  /** High-detail replacement fills for a city window (1:10M land and
+   *  water), shown only at close zoom where the 1:50M base gets blocky. */
+  patch?: "land" | "water";
 }
 
 /** A run of [lng, lat] points: a coastline, lake shore, or border. */
@@ -164,7 +167,9 @@ const INACTIVE_DOT_RADIUS = [0.22, 0.121, 0.055, 0.011];
 // every pair of layers several LSBs apart.
 const POLYGON_ALTITUDE = (polygon: object) => {
   const p = polygon as LandPolygon;
-  return p.water ? 0.01 : p.urban ? 0.0085 : 0.007;
+  // Patch fills sit between the base land and the urban wash; they only
+  // render at close zoom, where depth precision makes the small gaps safe.
+  return p.water ? 0.01 : p.urban ? 0.0085 : p.patch ? 0.0078 : 0.007;
 };
 const LINE_ALTITUDE = 0.012;
 
@@ -357,7 +362,8 @@ export default function GlobeScene({
   const capMaterialAccessor = useMemo(
     () => (polygon: object) => {
       const p = polygon as LandPolygon;
-      return p.water ? lakeMaterial : p.urban ? urbanMaterial : landMaterial;
+      if (p.patch === "water" || p.water) return lakeMaterial;
+      return p.urban ? urbanMaterial : landMaterial;
     },
     [lakeMaterial, landMaterial, urbanMaterial],
   );
@@ -369,6 +375,9 @@ export default function GlobeScene({
   // that layer — never blank.
   const [land, setLand] = useState<LandPolygon[]>([]);
   const [paths, setPaths] = useState<PathDatum[]>([]);
+  // The city window's 10m land/water fills — held separately from the
+  // streamed base and merged into the polygon layer only at close zoom.
+  const [patchPolys, setPatchPolys] = useState<LandPolygon[]>([]);
   useEffect(() => {
     let cancelled = false;
     let frame = 0;
@@ -386,9 +395,23 @@ export default function GlobeScene({
         { rings?: LineRun[] } | null,
         { borders?: LineRun[] } | null,
         { lakes?: number[][][][]; lakeRings?: LineRun[] } | null,
-        { urban?: number[][][][]; rivers?: LineRun[] } | null,
+        {
+          urban?: number[][][][];
+          rivers?: LineRun[];
+          patch?: { land?: number[][][][]; water?: number[][][][]; rings?: LineRun[] };
+        } | null,
       ]) => {
         if (cancelled) return;
+        const asPatch = (kind: "land" | "water") => (coordinates: number[][][]): LandPolygon => ({
+          type: "Feature",
+          properties: {},
+          geometry: { type: "Polygon", coordinates },
+          patch: kind,
+        });
+        setPatchPolys([
+          ...(cityData?.patch?.land ?? []).map(asPatch("land")),
+          ...(cityData?.patch?.water ?? []).map(asPatch("water")),
+        ]);
         const tiles = (tilesGeo?.features ?? [])
           .slice()
           .sort((a, b) => tileVertices(b) - tileVertices(a));
@@ -416,8 +439,11 @@ export default function GlobeScene({
           ...(ringsData?.rings ?? []).map((points): PathDatum => ({ points, kind: "coast" })),
           ...(bordersData?.borders ?? []).map((points): PathDatum => ({ points, kind: "border" })),
           ...(terrainData?.lakeRings ?? []).map((points): PathDatum => ({ points, kind: "coast" })),
-          // City rivers draw like coasts — they're water edges too.
+          // City rivers draw like coasts — they're water edges too, and
+          // the window's 10m coastline rings replace the 50m ones that
+          // the build removed inside it.
           ...(cityData?.rivers ?? []).map((points): PathDatum => ({ points, kind: "coast" })),
+          ...(cityData?.patch?.rings ?? []).map((points): PathDatum => ({ points, kind: "coast" })),
         ];
 
         // One state update per plan step. Order is the page's visual
@@ -532,6 +558,16 @@ export default function GlobeScene({
   // neighbor pins stay as small readable blobs.
   const [dotBucket, setDotBucket] = useState(0);
   const dotBucketRef = useRef(0);
+
+  // The polygon layer: streamed base everywhere; at close zoom the city
+  // window's 10m fills ride on top (kept out of the far view so their
+  // tight altitude gaps never meet coarse far-plane depth precision).
+  const closeUp = dotBucket >= 2;
+  const polygonsData = useMemo<LandPolygon[]>(
+    () => (closeUp && patchPolys.length ? [...land, ...patchPolys] : land),
+    [land, patchPolys, closeUp],
+  );
+
 
   // Active-chapter styling for the flat map dots. Memoized per chapter
   // change — identity churn here would re-digest the points layer on
@@ -1016,7 +1052,7 @@ export default function GlobeScene({
           globeMaterial={globeMaterial}
           atmosphereColor={palette.accent}
           atmosphereAltitude={0.1}
-          polygonsData={land}
+          polygonsData={polygonsData}
           polygonCapMaterial={capMaterialAccessor}
           polygonSideColor={NO_SIDE_COLOR}
           // Altitude must exceed the chord sag of the curvature grid, or
