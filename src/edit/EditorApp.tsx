@@ -3,7 +3,7 @@ import { chapters as sourceChapters, site as sourceSite } from "../data/chapters
 import type { EditableChapter, SiteContent } from "./types";
 import { generateChaptersTs } from "./generate";
 import { MapPicker } from "./MapPicker";
-import { bytesToBase64, publishFile, textToBase64 } from "./publish";
+import { assertWriteAccess, bytesToBase64, publishFile, textToBase64 } from "./publish";
 
 /**
  * The private content editor (/edit.html — unlinked, noindexed). The site
@@ -190,6 +190,8 @@ export function EditorApp() {
     setPublishing(true);
     setPublishLog([]);
     try {
+      log("Checking token access …");
+      await assertWriteAccess(target);
       for (const [name, item] of Object.entries(dropped)) {
         log(`Uploading /photos/${name} …`);
         const base64 = bytesToBase64(await item.file.arrayBuffer());

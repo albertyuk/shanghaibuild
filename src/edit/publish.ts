@@ -36,6 +36,38 @@ export function bytesToBase64(buf: ArrayBuffer): string {
 export const textToBase64 = (text: string) =>
   bytesToBase64(new TextEncoder().encode(text).buffer as ArrayBuffer);
 
+/**
+ * Preflight: prove the token can actually write to the repo before any
+ * uploads run, and convert the API's opaque failures into instructions.
+ * GitHub quirk worth knowing: a fine-grained token with no access to a
+ * repo gets 404 (not 403) on reads, and "Resource not accessible" 403s
+ * only at write time — so without this check, bad tokens fail late and
+ * cryptically.
+ */
+export async function assertWriteAccess(target: PublishTarget): Promise<void> {
+  const res = await fetch(
+    `https://api.github.com/repos/${target.owner}/${target.repo}`,
+    { headers: headers(target.token) },
+  );
+  if (res.status === 401) {
+    throw new Error("GitHub rejected the token (401). Paste the token again — it may be expired or mistyped.");
+  }
+  if (res.status === 404) {
+    throw new Error(
+      `The token can't see ${target.owner}/${target.repo}. When creating the fine-grained token, set Repository access to "Only select repositories" and pick this repo — the default "Public repositories (read-only)" option cannot write.`,
+    );
+  }
+  if (!res.ok) {
+    throw new Error(`GitHub ${res.status} while checking repo access.`);
+  }
+  const data = (await res.json()) as { permissions?: { push?: boolean } };
+  if (!data.permissions?.push) {
+    throw new Error(
+      "The token can see the repo but has no write access. Edit the token's Repository permissions and set Contents to \"Read and write\" (or use a classic token with the repo scope).",
+    );
+  }
+}
+
 /** The blob sha of the file as it exists on the branch (null = absent).
  *  The Contents API requires it when replacing an existing file. */
 async function existingSha(target: PublishTarget, path: string): Promise<string | null> {
@@ -69,6 +101,11 @@ export async function publishFile(
       ...(sha ? { sha } : {}),
     }),
   });
+  if (res.status === 403) {
+    throw new Error(
+      `GitHub refused to write ${path} (403). The token lacks Contents "Read and write" on this repo — edit the token's Repository permissions, or check that branch protection on "${target.branch}" allows direct pushes.`,
+    );
+  }
   if (!res.ok) {
     const detail = (await res.text()).slice(0, 200);
     throw new Error(`GitHub ${res.status} writing ${path}: ${detail}`);
