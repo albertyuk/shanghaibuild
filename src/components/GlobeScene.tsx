@@ -89,9 +89,9 @@ const ARC_ENTER_MS = 700;
 const PIN_ENTER_MS = 500;
 /** The briefing-map graticule: faint electric grid over the whole map. */
 const GRID_OPACITY = 0.14;
-/** Reticle tracking altitude — a whisker above the flat markers, so the
- *  crosshair centers on the dot rather than a point inside the globe. */
-const RETICLE_ALT = 0.01;
+/** Reticle tracking altitude — exactly the flat markers' altitude, so
+ *  the crosshair centers on its dot from any viewing angle. */
+const RETICLE_ALT = 0.008;
 
 // Stable identity matters: a new accessor function per render would make
 // three-globe tear down and re-tessellate every land polygon. A null side
@@ -171,7 +171,16 @@ const POLYGON_ALTITUDE = (polygon: object) => {
   // render at close zoom, where depth precision makes the small gaps safe.
   return p.water ? 0.01 : p.urban ? 0.0085 : p.patch ? 0.0078 : 0.007;
 };
+/** Line altitude is zoom-dependent: 0.012R (~76km) keeps lines clear of
+ *  the fills at globe distance where a depth LSB is coarse — but at
+ *  chapter zooms that height is over half the camera's own altitude, so
+ *  rivers and borders visibly float and parallax-slide off the ground.
+ *  Below regional altitude the lines drop to a whisker above the fills;
+ *  depth precision is ample there. Lake shore rings keep the high
+ *  altitude always (baked per-point) — their fills sit at 0.01, and a
+ *  lowered ring would vanish underneath. */
 const LINE_ALTITUDE = 0.012;
+const LINE_ALTITUDE_NEAR = 0.0082;
 
 /** three-globe's internal globe radius. */
 const GLOBE_RADIUS = 100;
@@ -438,7 +447,14 @@ export default function GlobeScene({
         const lines: PathDatum[] = [
           ...(ringsData?.rings ?? []).map((points): PathDatum => ({ points, kind: "coast" })),
           ...(bordersData?.borders ?? []).map((points): PathDatum => ({ points, kind: "border" })),
-          ...(terrainData?.lakeRings ?? []).map((points): PathDatum => ({ points, kind: "coast" })),
+          ...(terrainData?.lakeRings ?? []).map(
+            (points): PathDatum => ({
+              // Pinned high: lake fills sit at 0.01, so a ground-hugging
+              // shore ring would disappear under its own lake.
+              points: points.map(([x, y]) => [x, y, LINE_ALTITUDE]),
+              kind: "coast",
+            }),
+          ),
           // City rivers draw like coasts — they're water edges too, and
           // the window's 10m coastline rings replace the 50m ones that
           // the build removed inside it.
@@ -558,6 +574,15 @@ export default function GlobeScene({
   // neighbor pins stay as small readable blobs.
   const [dotBucket, setDotBucket] = useState(0);
   const dotBucketRef = useRef(0);
+
+  // Lines hug the ground at chapter zooms (see LINE_ALTITUDE_NEAR);
+  // per-point baked altitudes (lake rings) always win.
+  const lineAlt = dotBucket >= 1 ? LINE_ALTITUDE_NEAR : LINE_ALTITUDE;
+  const pathPointAltAccessor = useMemo(
+    () => (point: object) => (point as number[])[2] ?? lineAlt,
+    [lineAlt],
+  );
+
 
   // The polygon layer: streamed base everywhere; at close zoom the city
   // window's 10m fills ride on top (kept out of the far view so their
@@ -1070,7 +1095,7 @@ export default function GlobeScene({
           pathPointLat={PATH_POINT_LAT}
           pathPointLng={PATH_POINT_LNG}
           pathColor={palette.pathColorAccessor}
-          pathPointAlt={LINE_ALTITUDE}
+          pathPointAlt={pathPointAltAccessor}
           pathTransitionDuration={0}
           pointsData={points}
           pointLat={POINT_LAT}
