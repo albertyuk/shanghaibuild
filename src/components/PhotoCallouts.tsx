@@ -13,6 +13,9 @@ export interface TourStop {
 interface Props {
   stop: TourStop | null;
   reducedMotion: boolean;
+  /** Authored panel positions are percentages of the DESKTOP screen;
+   *  phones ignore them and use the compact in-pane corner stack. */
+  isDesktop: boolean;
 }
 
 /** How long the outgoing panels linger to play their dematerialize
@@ -27,10 +30,11 @@ const LEAVE_MS = 220;
  * the city. Panels materialize (wipe in) as the camera arrives; moving
  * on to the next pin swaps them for that location's set. The leader
  * lines live in GlobeScene, tracking the pin's projected position every
- * frame. Pins without photos render nothing. Desktop only; the mobile
- * pane is too small.
+ * frame. Pins without photos render nothing. On phones the panels
+ * compact into a small stack inside the map pane (see the mobile rules
+ * in global.css).
  */
-export function PhotoCallouts({ stop, reducedMotion }: Props) {
+export function PhotoCallouts({ stop, reducedMotion, isDesktop }: Props) {
   // Panels never blink out: on a stop change the outgoing set plays a
   // short dematerialize (CSS `.leaving`), then the new stop's panels
   // key in and materialize as usual.
@@ -71,9 +75,10 @@ export function PhotoCallouts({ stop, reducedMotion }: Props) {
       aria-label={chapter.title}
       // A placed pin moves the whole stack from the default corner to
       // its authored spot: top-left at (x% across, y% down) the screen,
-      // clamped so it can never hang off the viewport.
+      // clamped so it can never hang off the viewport. Desktop only —
+      // those percentages were dragged on a desktop-shaped screen.
       style={
-        pin.panel
+        isDesktop && pin.panel
           ? {
               left: `clamp(8px, ${pin.panel.x}vw, calc(100vw - min(230px, 22vw) - 8px))`,
               top: `clamp(8px, ${pin.panel.y}vh, calc(100vh - 160px))`,

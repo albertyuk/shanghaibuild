@@ -81,11 +81,13 @@ export default function App() {
   }, [webgl, bootDone]);
 
   // Warm the browser cache for every chapter photo once the globe is up,
-  // so callout panels never pop in half-loaded mid-scroll. Desktop only:
-  // the callout panels never render below 900px, so phones shouldn't
-  // spend a byte on them.
+  // so callout panels never pop in half-loaded mid-tour — every
+  // viewport, now that phones show the panels too. Save-Data visitors
+  // skip the warmup; their panels load per stop instead.
   useEffect(() => {
-    if (!booted || !isDesktop) return;
+    if (!booted) return;
+    const conn = (navigator as { connection?: { saveData?: boolean } }).connection;
+    if (conn?.saveData) return;
     for (const chapter of chapters) {
       for (const pin of chapter.pins) {
         for (const photo of pin.photos ?? []) {
@@ -94,7 +96,7 @@ export default function App() {
         }
       }
     }
-  }, [booted, isDesktop]);
+  }, [booted]);
   const showGlobe = webgl && !earthbound;
 
   // Track which section sits at the center of the reading window. The
@@ -205,8 +207,8 @@ export default function App() {
           </span>
         </button>
       )}
-      {showGlobe && isDesktop && (
-        <PhotoCallouts stop={stop} reducedMotion={reducedMotion} />
+      {showGlobe && (
+        <PhotoCallouts stop={stop} reducedMotion={reducedMotion} isDesktop={isDesktop} />
       )}
       {showGlobe && (activeChapter?.pins.length ?? 0) > 1 && (
         <button

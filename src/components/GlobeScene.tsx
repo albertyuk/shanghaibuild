@@ -762,13 +762,12 @@ export default function GlobeScene({
 
   // The pin the camera is holding on: photo panels and their leader
   // lines exist only for this stop, so each location's photos appear as
-  // the camera locks onto it and clear once it pulls away. Desktop
-  // only: the panels those lines point at never render on mobile.
+  // the camera locks onto it and clear once it pulls away.
   const stopPin = useMemo<Pin | null>(() => {
-    if (!isDesktop || stopIndex < 0) return null;
+    if (stopIndex < 0) return null;
     const chapter = chapters.find((ch) => ch.id === markerId);
     return chapter?.pins[stopIndex] ?? null;
-  }, [isDesktop, stopIndex, markerId]);
+  }, [stopIndex, markerId]);
   // One leader line per panel; PhotoCallouts renders one panel per photo.
   const stopPanelCount = stopPin
     ? Math.min((stopPin.photos ?? []).filter((photo) => photo.src).length, 2)

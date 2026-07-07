@@ -672,15 +672,45 @@ button {
 }
 
 @media (max-width: 899px) {
-  /* No room for observation panels on a phone — but the waypoint
-   * reticles stay. Their SVG is viewport-fixed (it escapes the pane's
-   * overflow), so clip it to the sticky map pane's box: a pin projected
-   * just past the pane edge must not stamp a crosshair on the text
-   * below. No leader lines exist here (panels are desktop-only). */
+  /* On a phone the observation panels compact into a small stack pinned
+   * to the map pane's bottom-left corner — clear of the readout and the
+   * cycle chip on the right. Authored desktop positions don't apply
+   * here (the component skips them below 900px). */
   .photo-callouts {
-    display: none;
+    left: 10px;
+    right: auto;
+    bottom: auto;
+    /* Bottom-anchored just above the flight readout's line. */
+    top: calc(var(--globe-height-mobile) - 42px);
+    transform: translateY(-100%);
+    width: clamp(108px, 32vw, 150px);
+    gap: 10px;
   }
 
+  /* Compact frames: photos crop to a squat window so even a two-photo
+   * stack fits the 45vh pane on small phones. */
+  .photo-callout img {
+    max-height: 24vw;
+    object-fit: cover;
+  }
+
+  .photo-callout-title {
+    font-size: 0.55rem;
+    padding: 5px 7px;
+  }
+
+  .photo-callout-data {
+    font-size: 0.5rem;
+  }
+
+  .photo-callout-caption {
+    font-size: 0.55rem;
+  }
+
+  /* The waypoint reticles stay. Their SVG is viewport-fixed (it escapes
+   * the pane's overflow), so clip it to the sticky map pane's box: a pin
+   * projected just past the pane edge must not stamp a crosshair on the
+   * text below. Leader lines connect panel to pin inside the pane. */
   .leader-lines {
     height: var(--globe-height-mobile);
     overflow: hidden;
