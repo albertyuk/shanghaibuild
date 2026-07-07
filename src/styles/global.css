@@ -444,7 +444,11 @@ button {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  width: min(230px, 22vw);
+  /* Panels scale with the screen: 16vw tracks the display (230px on a
+   * 1440 laptop, ~310px on a 1920 monitor), with soft floors/ceilings
+   * so tiny windows stay usable and ultrawides don't get posters.
+   * A pin's authored `panel.w` (set in the editor) overrides this. */
+  width: clamp(140px, 16vw, 400px);
 }
 
 /* The panel materializes first; its leader line draws after (delays on

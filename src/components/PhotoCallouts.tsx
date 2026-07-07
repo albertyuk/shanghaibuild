@@ -131,6 +131,10 @@ export function PhotoCallouts({ stop, reducedMotion, isDesktop }: Props) {
   const chapter = shown ? chapters.find((ch) => ch.id === shown.chapterId) : undefined;
   const pin = chapter && shown ? chapter.pins[shown.pinIndex] : undefined;
   const photos = (pin?.photos ?? []).filter((photo) => photo.src).slice(0, 2);
+  // Panel width scales with the screen; an authored per-pin width (vw,
+  // from the editor's placement page) overrides the responsive default.
+  const panelWidth =
+    pin?.panel?.w !== undefined ? `${pin.panel.w}vw` : "clamp(140px, 16vw, 400px)";
   // The viewer outlives its panel: the stack may clear (camera moved
   // on) while the visitor is still studying the blown-up photo.
   if (!chapter || !shown || !pin || photos.length === 0) return lightbox;
@@ -149,10 +153,11 @@ export function PhotoCallouts({ stop, reducedMotion, isDesktop }: Props) {
         style={
           isDesktop && pin.panel
             ? {
-                left: `clamp(8px, ${pin.panel.x}vw, calc(100vw - min(230px, 22vw) - 8px))`,
+                left: `clamp(8px, ${pin.panel.x}vw, calc(100vw - ${panelWidth} - 8px))`,
                 top: `clamp(8px, ${pin.panel.y}vh, calc(100vh - 160px))`,
                 right: "auto",
                 bottom: "auto",
+                width: panelWidth,
               }
             : undefined
         }

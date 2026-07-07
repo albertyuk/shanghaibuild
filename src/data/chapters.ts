@@ -23,9 +23,11 @@ export interface Pin {
    *  missing means no panel renders. */
   photos?: PhotoSlot[];
   /** Exact screen placement for this pin's photo panel: its top-left
-   *  corner as percentages of the viewport (0–100, x across / y down).
-   *  Set on the editor's placement page; omit for the default stack. */
-  panel?: { x: number; y: number };
+   *  corner as percentages of the viewport (0–100, x across / y down),
+   *  and optionally its width as a percentage of the screen's width
+   *  (`w`; omit for the responsive default). Set on the editor's
+   *  placement page; omit entirely for the default stack. */
+  panel?: { x: number; y: number; w?: number };
 }
 
 export interface Chapter {

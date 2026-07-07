@@ -129,9 +129,12 @@ function validate(chapters: EditableChapter[], site: SiteContent): string[] {
         }
       });
       if (pin.panel) {
-        const { x, y } = pin.panel;
+        const { x, y, w } = pin.panel;
         if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 100 || y < 0 || y > 100) {
           errors.push(`${label}, pin ${p + 1}: panel position must be within 0–100%.`);
+        }
+        if (w !== undefined && (!Number.isFinite(w) || w < 8 || w > 45)) {
+          errors.push(`${label}, pin ${p + 1}: panel width must be 8–45% of the screen.`);
         }
       }
     });
@@ -198,6 +201,7 @@ export function EditorApp() {
   const dragRef = useRef<{
     chapterIndex: number;
     pinIndex: number;
+    pointerId: number;
     dx: number;
     dy: number;
     stage: DOMRect;
@@ -215,6 +219,7 @@ export function EditorApp() {
     dragRef.current = {
       chapterIndex,
       pinIndex,
+      pointerId: e.pointerId,
       dx: e.clientX - rect.left,
       dy: e.clientY - rect.top,
       stage: stage.getBoundingClientRect(),
@@ -224,22 +229,83 @@ export function EditorApp() {
 
   const movePanelDrag = (e: ReactPointerEvent<HTMLElement>) => {
     const drag = dragRef.current;
-    if (!drag) return;
+    // Gestures are keyed by pointer: a second finger starting its own
+    // drag or resize must not steer this one.
+    if (!drag || e.pointerId !== drag.pointerId) return;
     const panel = e.currentTarget.getBoundingClientRect();
     const maxX = Math.max(0, 100 - (panel.width / drag.stage.width) * 100);
     const maxY = Math.max(0, 100 - (panel.height / drag.stage.height) * 100);
     const x = ((e.clientX - drag.dx - drag.stage.left) / drag.stage.width) * 100;
     const y = ((e.clientY - drag.dy - drag.stage.top) / drag.stage.height) * 100;
+    // Spread the existing panel first: a reposition must never eat an
+    // authored width.
+    const pin = chapters[drag.chapterIndex]?.pins[drag.pinIndex];
     patchPin(drag.chapterIndex, drag.pinIndex, {
       panel: {
+        ...pin?.panel,
         x: Math.round(Math.min(Math.max(x, 0), maxX) * 10) / 10,
         y: Math.round(Math.min(Math.max(y, 0), maxY) * 10) / 10,
       },
     });
   };
 
-  const endPanelDrag = () => {
-    dragRef.current = null;
+  const endPanelDrag = (e: ReactPointerEvent<HTMLElement>) => {
+    if (dragRef.current && e.pointerId === dragRef.current.pointerId) {
+      dragRef.current = null;
+    }
+  };
+
+  // Corner-grip resize: dragging writes the stack's width into the draft
+  // as % of the stage — the same number the live site reads as vw. The
+  // grip stops propagation so a resize never doubles as a move.
+  const resizeRef = useRef<{
+    chapterIndex: number;
+    pinIndex: number;
+    pointerId: number;
+    stage: DOMRect;
+  } | null>(null);
+
+  const startPanelResize = (
+    e: ReactPointerEvent<HTMLElement>,
+    chapterIndex: number,
+    pinIndex: number,
+  ) => {
+    const stage = e.currentTarget.closest(".pos-stage");
+    if (!stage) return;
+    e.preventDefault();
+    e.stopPropagation();
+    resizeRef.current = {
+      chapterIndex,
+      pinIndex,
+      pointerId: e.pointerId,
+      stage: stage.getBoundingClientRect(),
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const movePanelResize = (e: ReactPointerEvent<HTMLElement>) => {
+    const resize = resizeRef.current;
+    if (!resize || e.pointerId !== resize.pointerId) return;
+    const stack = e.currentTarget.closest(".pos-callout-stack");
+    if (!stack) return;
+    const left = stack.getBoundingClientRect().left;
+    const w = ((e.clientX - left) / resize.stage.width) * 100;
+    const pin = chapters[resize.chapterIndex]?.pins[resize.pinIndex];
+    patchPin(resize.chapterIndex, resize.pinIndex, {
+      panel: {
+        x: 50,
+        y: 50,
+        ...pin?.panel,
+        w: Math.round(Math.min(45, Math.max(8, w)) * 10) / 10,
+      },
+    });
+  };
+
+  const endPanelResize = (e: ReactPointerEvent<HTMLElement>) => {
+    e.stopPropagation();
+    if (resizeRef.current && e.pointerId === resizeRef.current.pointerId) {
+      resizeRef.current = null;
+    }
   };
 
   /** Typed coordinate for one axis; the other axis defaults to center
@@ -247,11 +313,37 @@ export function EditorApp() {
   const setPanelAxis = (
     chapterIndex: number,
     pinIndex: number,
-    axis: "x" | "y",
+    axis: "x" | "y" | "w",
     raw: string,
   ) => {
-    if (raw.trim() === "") return;
-    const value = Math.min(100, Math.max(0, Number(raw) || 0));
+    if (raw.trim() === "") {
+      // An emptied width falls back to the responsive default; the
+      // position keeps its value (clearing THAT is "default stack").
+      if (axis === "w") {
+        setChapters((prev) =>
+          prev.map((c, i) =>
+            i === chapterIndex
+              ? {
+                  ...c,
+                  pins: c.pins.map((pin, j) => {
+                    if (j !== pinIndex || !pin.panel) return pin;
+                    const { w: _w, ...rest } = pin.panel;
+                    return { ...pin, panel: rest };
+                  }),
+                }
+              : c,
+          ),
+        );
+      }
+      return;
+    }
+    // Width only caps its ceiling per keystroke — flooring to 8 here
+    // would rewrite a "1" (en route to "12") into "8" as you type; the
+    // input's blur handler applies the floor once entry is done.
+    const value =
+      axis === "w"
+        ? Math.min(45, Math.max(0, Number(raw) || 0))
+        : Math.min(100, Math.max(0, Number(raw) || 0));
     setChapters((prev) =>
       prev.map((c, i) =>
         i === chapterIndex
@@ -441,8 +533,10 @@ export function EditorApp() {
             Each frame is the desktop screen while that chapter is active; the
             dashed line is the map pane's edge. Drag a panel to set exactly
             where it appears on screen — stored as % of the screen from the
-            top-left — or type the numbers. Panels without a position use the
-            default bottom-right stack. Nothing here is deployed yet.
+            top-left — and drag the corner grip (or type w&nbsp;%) to set how
+            wide its photos render. Panels without a position use the default
+            bottom-right stack; without a width they scale with the visitor's
+            screen. Nothing here is deployed yet.
           </p>
           <button type="button" onClick={() => setPreviewing(false)}>
             Back to editor
@@ -477,14 +571,15 @@ export function EditorApp() {
                     <div
                       className="pos-callout-stack"
                       key={pinIndex}
-                      style={
-                        pin.panel
+                      style={{
+                        width: `${pin.panel?.w ?? 16}%`,
+                        ...(pin.panel
                           ? { left: `${pin.panel.x}%`, top: `${pin.panel.y}%` }
                           : {
                               right: "2%",
                               bottom: `${5 + (unpositioned.length - 1 - stackSlot) * 38}%`,
-                            }
-                      }
+                            }),
+                      }}
                       onPointerDown={(e) => startPanelDrag(e, chapterIndex, pinIndex)}
                       onPointerMove={movePanelDrag}
                       onPointerUp={endPanelDrag}
@@ -525,6 +620,20 @@ export function EditorApp() {
                           image not loading — publish or commit the file
                         </p>
                       )}
+                      {/* The grip only rides placed stacks: resizing an
+                        * unplaced one would have to invent a position
+                        * mid-gesture and teleport it. Place first (or
+                        * type w %, which anchors at center). */}
+                      {pin.panel && (
+                        <span
+                          className="pos-resize"
+                          title="Drag to resize"
+                          onPointerDown={(e) => startPanelResize(e, chapterIndex, pinIndex)}
+                          onPointerMove={movePanelResize}
+                          onPointerUp={endPanelResize}
+                          onPointerCancel={endPanelResize}
+                        />
+                      )}
                     </div>
                   );
                 })}
@@ -556,6 +665,23 @@ export function EditorApp() {
                       placeholder="auto"
                       aria-label={`${pin.city || `Pin ${pinIndex + 1}`} panel y`}
                       onChange={(e) => setPanelAxis(chapterIndex, pinIndex, "y", e.target.value)}
+                    />
+                  </label>
+                  <label className="pos-field">
+                    w %
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="8"
+                      max="45"
+                      value={pin.panel?.w ?? ""}
+                      placeholder="auto"
+                      aria-label={`${pin.city || `Pin ${pinIndex + 1}`} panel width`}
+                      onChange={(e) => setPanelAxis(chapterIndex, pinIndex, "w", e.target.value)}
+                      onBlur={() => {
+                        const w = pin.panel?.w;
+                        if (w !== undefined && w < 8) setPanelAxis(chapterIndex, pinIndex, "w", "8");
+                      }}
                     />
                   </label>
                   <button

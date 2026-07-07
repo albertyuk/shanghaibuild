@@ -14,7 +14,7 @@ type PinShape = {
   lat: number;
   lng: number;
   photos?: { src: string; caption?: string }[];
-  panel?: { x: number; y: number };
+  panel?: { x: number; y: number; w?: number };
 };
 
 function photoList(photos: PinShape["photos"]): string {
@@ -35,7 +35,11 @@ function pinLine(pin: PinShape) {
   // A panel position is only meaningful alongside photos — dropping it
   // otherwise keeps the exported file free of dead fields.
   const panel =
-    photos && pin.panel ? `, panel: { x: ${pin.panel.x}, y: ${pin.panel.y} }` : "";
+    photos && pin.panel
+      ? `, panel: { x: ${pin.panel.x}, y: ${pin.panel.y}${
+          pin.panel.w !== undefined ? `, w: ${pin.panel.w}` : ""
+        } }`
+      : "";
   return `{ city: ${s(pin.city)}, country: ${s(pin.country)}, lat: ${pin.lat}, lng: ${pin.lng}${photos}${panel} }`;
 }
 
@@ -94,9 +98,11 @@ export interface Pin {
    *  missing means no panel renders. */
   photos?: PhotoSlot[];
   /** Exact screen placement for this pin's photo panel: its top-left
-   *  corner as percentages of the viewport (0–100, x across / y down).
-   *  Set on the editor's placement page; omit for the default stack. */
-  panel?: { x: number; y: number };
+   *  corner as percentages of the viewport (0–100, x across / y down),
+   *  and optionally its width as a percentage of the screen's width
+   *  (\`w\`; omit for the responsive default). Set on the editor's
+   *  placement page; omit entirely for the default stack. */
+  panel?: { x: number; y: number; w?: number };
 }
 
 export interface Chapter {

@@ -318,12 +318,12 @@ button.ghost.danger:hover:not(:disabled) {
   color: var(--muted);
 }
 
-/* Panels scale to the same screen fraction they occupy live
- * (230px ≈ 16% of a 1440px display), so placement reads true. One
- * draggable stack per pin; its panels (city + Ibid.) ride along. */
+/* Panels scale to the same screen fraction they occupy live (width is
+ * set inline: the pin's authored w %, or the 16% responsive default),
+ * so placement reads true. One draggable stack per pin; its panels
+ * (city + Ibid.) ride along, and the corner grip resizes it. */
 .pos-stage .pos-callout-stack {
   position: absolute;
-  width: 16%;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -343,6 +343,26 @@ button.ghost.danger:hover:not(:disabled) {
 
 .pos-stage .photo-callout img {
   pointer-events: none;
+}
+
+/* The resize grip: a small accent square riding the stack's bottom-right
+ * corner. Dragging it writes the panel width (w %) into the draft. It
+ * sits fully INSIDE the corner — the stage clips overflow, and a panel
+ * parked flush against a stage edge must keep the whole grip grabbable. */
+.pos-stage .pos-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.pos-stage .pos-resize:hover {
+  background: var(--accent-hot);
 }
 
 /* Coordinate inputs under each stage. */
