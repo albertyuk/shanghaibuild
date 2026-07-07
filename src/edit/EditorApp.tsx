@@ -603,6 +603,8 @@ export function EditorApp() {
           {textField("Loading label", site.loadingLabel, (v) => setSite({ ...site, loadingLabel: v }))}
           {textField("South Pole easter egg", site.poleEgg, (v) => setSite({ ...site, poleEgg: v }))}
           {textField("Second-photo heading", site.ibidLabel, (v) => setSite({ ...site, ibidLabel: v }))}
+          {textField("Photo expand label", site.expandLabel, (v) => setSite({ ...site, expandLabel: v }))}
+          {textField("Photo close label", site.closeLabel, (v) => setSite({ ...site, closeLabel: v }))}
           {textField("Skip link", site.skipLinkLabel, (v) => setSite({ ...site, skipLinkLabel: v }))}
         </div>
         <h3>Contact links</h3>

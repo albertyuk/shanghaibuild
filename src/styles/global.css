@@ -547,6 +547,85 @@ button {
   color: var(--muted);
 }
 
+/* The photo itself is a control: click to blow it up full screen. */
+.photo-zoom {
+  display: block;
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.photo-zoom:focus-visible {
+  outline: 2px solid var(--accent-hot);
+  outline-offset: 2px;
+}
+
+/* ---------- Full-screen photo viewer ---------- */
+
+/* The lightbox: the same paper-and-halftone veil the chapter strip
+ * uses, the still at full size over it with its data strip, and the
+ * close chip riding the earth-toggle chrome. A click anywhere — or
+ * Escape — dismisses it. */
+.photo-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 5vw, 56px);
+  background:
+    radial-gradient(var(--halftone-dot) 1px, transparent 1px) 0 0 / 3px 3px,
+    var(--bg);
+  cursor: zoom-out;
+  animation: lightbox-in 200ms var(--ease-slip) both;
+}
+
+@keyframes lightbox-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.photo-lightbox-close {
+  z-index: 41;
+  cursor: pointer;
+}
+
+.photo-lightbox-frame {
+  margin: 0;
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/* The blown-up still replays the feed-sync flicker as it lands. */
+.photo-lightbox-frame img {
+  display: block;
+  max-width: 100%;
+  max-height: 82vh;
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-panel);
+  animation: photo-sync 520ms linear both;
+}
+
+.photo-lightbox-data {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-align: center;
+}
+
 /* Leader lines from panel edge to pin, aimed per-frame from the globe
  * scene. Draw on from the panel outward; the terminal crosshair fades
  * in. Fixed to the viewport (not the pane) so the run from the rail-side
