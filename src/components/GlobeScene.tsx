@@ -97,9 +97,8 @@ const STOP_LINGER_MS = 350;
 const DIVE_MS = 900;
 const DIVE_ALTITUDE = 0.012;
 const IDLE_ROTATE_SPEED = 0.35;
-/** Draw-in timings — the slow reveal for arcs and pins. */
+/** Draw-in timing — the slow reveal for arcs. */
 const ARC_ENTER_MS = 700;
-const PIN_ENTER_MS = 500;
 /** The briefing-map graticule: faint electric grid over the whole map. */
 const GRID_OPACITY = 0.14;
 /** Reticle tracking altitude — exactly the flat markers' altitude, so
@@ -1308,7 +1307,11 @@ export default function GlobeScene({
           // marking for the active chapter. No pillars.
           pointRadius={pointRadiusAccessor}
           pointAltitude={0.008}
-          pointsTransitionDuration={reducedMotion ? 0 : PIN_ENTER_MS}
+          // No geometry tween: the one-time enter plays behind the boot
+          // veil anyway, and tweened radius steps lag a fast descent on
+          // slow devices — the dot would ride oversized into a city
+          // arrival. Snapping half-octave steps is imperceptible.
+          pointsTransitionDuration={0}
           arcsData={arcs}
           arcStartLat={ARC_START_LAT}
           arcStartLng={ARC_START_LNG}
