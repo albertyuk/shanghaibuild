@@ -96,11 +96,18 @@ const STOP_LINGER_MS = 350;
  *  frame before the words take over. */
 const DIVE_MS = 900;
 const DIVE_ALTITUDE = 0.012;
-/** Where the plunge lands: an empty stretch of central-Australian
- *  outback — plain land with no pins, borders, lakes, or urban wash in
- *  frame — so the dive reads as descending to the planet itself, not
- *  zooming into a marker. */
-const DIVE_POV = { lat: -25.0, lng: 132.0 };
+/** Where the plunge lands: hand-picked empty stretches of land — no
+ *  pins, borders, lakes, urban wash, or graticule lines in frame at
+ *  dive altitude — scattered across the regions the chapters visit.
+ *  The dive drops onto whichever is nearest the camera, so it reads as
+ *  descending to the ground below rather than flying somewhere else. */
+const DIVE_SPOTS = [
+  { lat: 33.0, lng: 116.5 }, // Huai plain, Anhui — the east-China chapters
+  { lat: 48.5, lng: 66.0 }, // Kazakh steppe — Central Asia
+  { lat: 33.5, lng: 55.0 }, // Dasht-e Kavir, Iran — the Middle East
+  { lat: 24.0, lng: 5.0 }, // central Sahara — Africa / Europe approaches
+  { lat: 41.0, lng: -99.0 }, // Great Plains, Nebraska — the US chapters
+];
 const IDLE_ROTATE_SPEED = 0.35;
 /** Draw-in timing — the slow reveal for arcs. */
 const ARC_ENTER_MS = 700;
@@ -304,7 +311,7 @@ function clipFatLineBehindHorizon<T extends { onBeforeCompile: unknown; customPr
 
 const RAD = Math.PI / 180;
 
-const pinVec = (pin: Pin): [number, number, number] => [
+const pinVec = (pin: Pick<Pin, "lat" | "lng">): [number, number, number] => [
   Math.cos(pin.lat * RAD) * Math.cos(pin.lng * RAD),
   Math.cos(pin.lat * RAD) * Math.sin(pin.lng * RAD),
   Math.sin(pin.lat * RAD),
@@ -1184,15 +1191,26 @@ export default function GlobeScene({
     };
   }, [activeId, ready, reducedMotion, diving, manual]);
 
-  // The "down to earth" dive: plunge into open ground, wherever the
-  // camera happens to be — never onto a pin.
+  // The "down to earth" dive: plunge into the nearest patch of open
+  // ground — never onto a pin, and never a cross-planet flight.
   useEffect(() => {
     if (!diving || !ready) return;
     const globe = globeRef.current;
     if (!globe) return;
-    const refLng = (globe.pointOfView() as { lng: number }).lng;
+    const pov = globe.pointOfView() as { lat: number; lng: number };
+    const here = pinVec(pov);
+    let target = DIVE_SPOTS[0];
+    let best = -Infinity;
+    for (const spot of DIVE_SPOTS) {
+      const v = pinVec(spot);
+      const d = here[0] * v[0] + here[1] * v[1] + here[2] * v[2];
+      if (d > best) {
+        best = d;
+        target = spot;
+      }
+    }
     globe.pointOfView(
-      { lat: DIVE_POV.lat, lng: nearestLng(DIVE_POV.lng, refLng), altitude: DIVE_ALTITUDE },
+      { lat: target.lat, lng: nearestLng(target.lng, pov.lng), altitude: DIVE_ALTITUDE },
       reducedMotion ? 0 : DIVE_MS,
     );
   }, [diving, ready, reducedMotion]);
