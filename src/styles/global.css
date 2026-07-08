@@ -863,6 +863,133 @@ button {
   display: none;
 }
 
+/* ---------- Earthbound résumé ---------- */
+
+/* The page after the plunge: one plain sheet — name, contact, the six
+ * chapters as compact experience entries — and nothing else. Rides the
+ * centered no-globe rail. */
+.resume {
+  padding: clamp(48px, 9vh, 96px) 0 72px;
+  animation: resume-in 420ms var(--ease-slip) both;
+}
+
+@keyframes resume-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.resume-kicker {
+  margin: 0 0 10px;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.resume h1 {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4.5vw, 2.9rem);
+  line-height: 1.02;
+  color: var(--ink);
+  animation: text-acquire 460ms step-end both;
+}
+
+.resume-identity {
+  margin: 0 0 14px;
+  font-size: 1.02rem;
+  color: var(--ink-body);
+  max-width: 38rem;
+}
+
+.resume-contact {
+  margin: 0;
+  padding: 0 0 18px;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  border-bottom: 1px solid var(--hairline);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+}
+
+.resume-contact a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.resume-contact a:hover {
+  color: var(--accent-hot);
+  text-decoration: underline;
+}
+
+.resume-about {
+  margin: 18px 0 26px;
+  color: var(--ink-body);
+  font-size: 0.94rem;
+  line-height: 1.55;
+}
+
+.resume-heading {
+  margin: 0 0 14px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.resume-entries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.resume-entry-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.resume-entry h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.14rem;
+  color: var(--ink);
+}
+
+.resume-dates {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.resume-role {
+  margin: 3px 0 6px;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+}
+
+.resume-blurb {
+  margin: 0;
+  color: var(--ink-body);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
 /* In the no-globe fallback the rail is centered, so full nav titles would
  * collide with the text column at narrow desktop widths — numbers only. */
 .no-globe .index-title {

@@ -7,6 +7,7 @@ import { SiteFooter } from "./components/SiteFooter";
 import { GlobePlaceholder } from "./components/GlobePlaceholder";
 import { GlobeErrorBoundary } from "./components/GlobeErrorBoundary";
 import { PhotoCallouts, type TourStop } from "./components/PhotoCallouts";
+import { Resume } from "./components/Resume";
 import { Decode } from "./components/Decode";
 import { hasWebGL } from "./lib/webgl";
 import { readingCenterFraction } from "./lib/viewport";
@@ -120,7 +121,9 @@ export default function App() {
     );
     observed.forEach((el) => observer.observe(el));
     return () => observer.disconnect();
-  }, [isDesktop]);
+    // earthbound swaps the whole rail out and back: re-attach to the
+    // remounted sections or scroll-activation dies on return to orbit.
+  }, [isDesktop, earthbound]);
 
   // Section entry: a soft fade-up on the section, plus the electronic
   // acquire-flicker CSS keys off the same .in-view class for the
@@ -141,15 +144,25 @@ export default function App() {
     );
     faded.forEach((el) => observer.observe(el));
     return () => observer.disconnect();
-  }, []);
+    // Remounted [data-fade] sections start back at opacity 0 — they need
+    // a fresh observer after every earthbound round-trip.
+  }, [earthbound]);
 
   useEffect(() => () => window.clearTimeout(diveTimer.current), []);
+
+  // The résumé is a fresh page: enter it at the top, and put the reader
+  // back where they were in the chapters when they return to orbit.
+  const orbitScroll = useRef(0);
+  useEffect(() => {
+    window.scrollTo(0, earthbound ? 0 : orbitScroll.current);
+  }, [earthbound]);
 
   const toggleEarthbound = () => {
     if (earthbound) {
       setEarthbound(false);
       return;
     }
+    orbitScroll.current = window.scrollY;
     if (!showGlobe || reducedMotion) {
       setEarthbound(true);
       return;
@@ -238,23 +251,35 @@ export default function App() {
           </GlobeErrorBoundary>
         </div>
       )}
-      <ChapterIndex
-        activeId={activeId}
-        isDesktop={isDesktop}
-        reducedMotion={reducedMotion}
-      />
-      <div className="rail">
-        <Hero />
-        <main id="chapters">
-          <p className="about" data-fade>
-            {site.about}
-          </p>
-          {chapters.map((chapter, i) => (
-            <ChapterSection key={chapter.id} chapter={chapter} index={i} />
-          ))}
-        </main>
-        <SiteFooter />
-      </div>
+      {earthbound ? (
+        // Earthbound: the whole site collapses to one quiet page — the
+        // résumé and the way back, nothing else.
+        <div className="rail">
+          <main id="chapters">
+            <Resume />
+          </main>
+        </div>
+      ) : (
+        <>
+          <ChapterIndex
+            activeId={activeId}
+            isDesktop={isDesktop}
+            reducedMotion={reducedMotion}
+          />
+          <div className="rail">
+            <Hero />
+            <main id="chapters">
+              <p className="about" data-fade>
+                {site.about}
+              </p>
+              {chapters.map((chapter, i) => (
+                <ChapterSection key={chapter.id} chapter={chapter} index={i} />
+              ))}
+            </main>
+            <SiteFooter />
+          </div>
+        </>
+      )}
     </div>
   );
 }

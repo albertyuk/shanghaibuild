@@ -92,10 +92,15 @@ const LOCK_LEAD_MS = 700;
  *  a beat into the outbound leg (or the closing overview), not the
  *  whole flight. */
 const STOP_LINGER_MS = 350;
-/** The "down to earth" plunge — deep enough that the city-detail layer
- *  (urban wash, rivers) fills the frame before the words take over. */
+/** The "down to earth" plunge — deep enough that the ground fills the
+ *  frame before the words take over. */
 const DIVE_MS = 900;
 const DIVE_ALTITUDE = 0.012;
+/** Where the plunge lands: an empty stretch of central-Australian
+ *  outback — plain land with no pins, borders, lakes, or urban wash in
+ *  frame — so the dive reads as descending to the planet itself, not
+ *  zooming into a marker. */
+const DIVE_POV = { lat: -25.0, lng: 132.0 };
 const IDLE_ROTATE_SPEED = 0.35;
 /** Draw-in timing — the slow reveal for arcs. */
 const ARC_ENTER_MS = 700;
@@ -1179,19 +1184,18 @@ export default function GlobeScene({
     };
   }, [activeId, ready, reducedMotion, diving, manual]);
 
-  // The "down to earth" dive: plunge straight into the active place.
+  // The "down to earth" dive: plunge into open ground, wherever the
+  // camera happens to be — never onto a pin.
   useEffect(() => {
     if (!diving || !ready) return;
     const globe = globeRef.current;
     if (!globe) return;
-    const chapter = chapters.find((ch) => ch.id === activeId);
-    const target = chapter ? chapter.pins[0] : HERO_POV;
     const refLng = (globe.pointOfView() as { lng: number }).lng;
     globe.pointOfView(
-      { lat: target.lat, lng: nearestLng(target.lng, refLng), altitude: DIVE_ALTITUDE },
+      { lat: DIVE_POV.lat, lng: nearestLng(DIVE_POV.lng, refLng), altitude: DIVE_ALTITUDE },
       reducedMotion ? 0 : DIVE_MS,
     );
-  }, [diving, ready, activeId, reducedMotion]);
+  }, [diving, ready, reducedMotion]);
 
   // Flight-instrument readout: written straight to the DOM on every
   // camera move — no React re-renders at 60fps. The dot-scale bucket

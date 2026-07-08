@@ -153,6 +153,7 @@ export const site = {
   about:
     "Deerfield Academy, Class of 2026. The work below spans a commercial photo studio, feature and commercial film sets, a photojournalism journey with Liu Heung Shing, a festival-winning documentary, and agentic marketing systems at SHEIN — ordered as chapters, each pinned to the place it happened.",
   chaptersHeading: "Chapters",
+  resumeHeading: "Experience",
   contactHeading: "Contact",
   contact: [
     { label: "yukalbert.com", href: "https://www.yukalbert.com" },

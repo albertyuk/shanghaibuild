@@ -723,6 +723,7 @@ export function EditorApp() {
           {textField("Footer note", site.footerNote, (v) => setSite({ ...site, footerNote: v }), true)}
           {textField("Contact heading", site.contactHeading, (v) => setSite({ ...site, contactHeading: v }))}
           {textField("Chapters heading", site.chaptersHeading, (v) => setSite({ ...site, chaptersHeading: v }))}
+          {textField("Résumé heading", site.resumeHeading, (v) => setSite({ ...site, resumeHeading: v }))}
           {textField("Toggle — down", site.earthDown, (v) => setSite({ ...site, earthDown: v }))}
           {textField("Toggle — up", site.earthUp, (v) => setSite({ ...site, earthUp: v }))}
           {textField("Next-location button", site.cycleLabel, (v) => setSite({ ...site, cycleLabel: v }))}

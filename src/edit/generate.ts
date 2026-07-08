@@ -135,6 +135,7 @@ export const site = {
   about:
     ${s(site.about)},
   chaptersHeading: ${s(site.chaptersHeading)},
+  resumeHeading: ${s(site.resumeHeading)},
   contactHeading: ${s(site.contactHeading)},
   contact: [
 ${site.contact.map((c) => `    { label: ${s(c.label)}, href: ${s(c.href)} },`).join("\n")}
