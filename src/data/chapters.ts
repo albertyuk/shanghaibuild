@@ -148,16 +148,16 @@ export const site = {
   name: "Albert Yuk",
   kicker: "Production log · 2022 – 2026",
   identity:
-    "Filmmaker, photographer, and marketing technologist. Six chapters of work, plotted where they happened.",
-  scrollCue: "Scroll — the globe follows",
+    "Grew up in HK and Shanghai, Deerfield '26, Harvard '30",
+  scrollCue: "Scroll Down",
   about:
-    "Deerfield Academy, Class of 2026. The work below spans a commercial photo studio, feature and commercial film sets, a photojournalism journey with Liu Heung Shing, a festival-winning documentary, and agentic marketing systems at SHEIN — ordered as chapters, each pinned to the place it happened.",
+    "The work below spans a commercial photo studio, feature and commercial film sets, a photojournalism journey with Liu Heung Shing, a festival-winning documentary, and agentic marketing systems at SHEIN.",
   chaptersHeading: "Chapters",
   resumeHeading: "Experience",
   contactHeading: "Contact",
   contact: [
     { label: "yukalbert.com", href: "https://www.yukalbert.com" },
-    { label: "yzy.albert@gmail.com", href: "mailto:yzy.albert@gmail.com" },
+    { label: "yukzy.albert@gmail.com", href: "mailto:yzy.albert@gmail.com" },
     { label: "Photographs", href: "https://www.yukalbert.com/photograph" },
     { label: "Film sets", href: "https://www.yukalbert.com/filmset" },
     { label: "Central Asia series", href: "https://www.yukalbert.com/central-asia" },
@@ -172,6 +172,6 @@ export const site = {
   expandLabel: "Expand photo",
   closeLabel: "Close",
   footerNote:
-    "Single static page. The globe is drawn locally from vector data (Natural Earth; river detail © OpenStreetMap contributors); nothing on this site tracks you.",
+    "The globe is drawn locally from vector data (Natural Earth; river detail © OpenStreetMap contributors).",
   skipLinkLabel: "Skip to chapters",
 };
